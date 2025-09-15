@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "cc-vec": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/Users/rsm/dev/ccf",
+        "cc-vec",
+        "mcp-serve",
+        "--mode",
+        "stdio"
+      ],
+      "env": {
+        "ATHENA_OUTPUT_BUCKET": "s3://llama-stack-dev-test0/athena-results/",
+        "OPENAI_API_KEY": "your-openai-api-key-here"
+      }
+    }
+  }
+}
