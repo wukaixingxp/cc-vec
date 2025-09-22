@@ -10,8 +10,9 @@ Search, analyze, and index Common Crawl data into vector stores for RAG applicat
 **Environment variables:**
 
 - **`ATHENA_OUTPUT_BUCKET`** - Required S3 bucket for Athena query results (needed for reliable queries to Common Crawl metadata)
-- **`AWS_SECRET_KEY`** - Required for Athena/S3 access (needed to run Athena queries)
-- **`AWS_ACCESS_KEY`** - Required for Athena/S3 access (needed to run Athena queries)
+- **`AWS_ACCESS_KEY_ID`** - Required for Athena/S3 access (needed to run Athena queries)
+- **`AWS_SECRET_ACCESS_KEY`** - Required for Athena/S3 access (needed to run Athena queries)
+- **`AWS_SESSION_TOKEN`** - Optional for Athena/S3 access (needed to run Athena queries). This is required for temporary credentials
 - **`OPENAI_API_KEY`** - Required for vector operations (index, query, list)
 - `OPENAI_BASE_URL` - Optional custom OpenAI endpoint
 - `AWS_DEFAULT_REGION` - AWS region (defaults to us-west-2)
