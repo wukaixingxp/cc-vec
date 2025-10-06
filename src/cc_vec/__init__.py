@@ -6,9 +6,7 @@ from .api import fetch, index, list_vector_stores, query_vector_store, search, s
 # Public API - RAG agent
 from .rag_agent import (
     CCVecRAGAgent,
-    create_interactive_agent,
     create_rag_agent,
-    InteractiveRAGAgent,
 )
 
 # Public API - types and configuration
