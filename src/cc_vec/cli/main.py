@@ -10,12 +10,12 @@ import click
 
 # Use the simplified API
 from .. import (
-    stats as stats_function,
-    search as search_function,
     fetch as fetch_function,
     index as index_function,
     list_vector_stores as list_vector_stores_function,
     query_vector_store as query_vector_store_function,
+    search as search_function,
+    stats as stats_function,
 )
 from ..types.config import load_config
 
@@ -808,6 +808,339 @@ def delete(ctx, identifier, by_name, confirm, output):
 
 
 @cli.command()
+@click.argument("url_pattern")
+@click.argument("vector_store_name", required=False)
+@click.option("--limit", "-l", default=50, help="Maximum number of pages to index")
+@click.option("--crawl", default="CC-MAIN-2024-33", help="Common Crawl dataset to use")
+@click.option(
+    "--status-codes",
+    help="HTTP status codes to filter by (comma-separated, e.g., '200,201')",
+)
+@click.option(
+    "--mime-types",
+    help="MIME types to filter by (comma-separated, e.g., 'text/html,text/plain')",
+)
+@click.option(
+    "--embedding-model",
+    default="sentence-transformers/all-MiniLM-L6-v2",
+    help="Embedding model to use",
+)
+@click.option("--embedding-dimension", default=384, help="Dimension of embeddings")
+@click.option("--provider-id", default="faiss", help="Vector database backend")
+@click.option(
+    "--llama-stack-url",
+    help="Llama Stack server URL (defaults to LLAMA_STACK_PORT env var)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Choice(["json", "text"]),
+    default="text",
+    help="Output format",
+)
+@click.pass_context
+def rag_create(
+    ctx,
+    url_pattern,
+    vector_store_name,
+    limit,
+    crawl,
+    status_codes,
+    mime_types,
+    embedding_model,
+    embedding_dimension,
+    provider_id,
+    llama_stack_url,
+    output,
+):
+    """Create a Llama Stack knowledge base from Common Crawl data for RAG.
+
+    This creates a knowledge base using Llama Stack's Files API and Vector Stores API,
+    combining cc-vec's Common Crawl indexing with Llama Stack's RAG capabilities.
+
+    Example: uv run cc-vec rag-create "%.arxiv.org" ml-papers --limit 100
+    """
+    try:
+        from ..rag_agent import CCVecRAGAgent
+
+        # Generate name if not provided
+        if not vector_store_name:
+            import re
+            from datetime import datetime
+
+            clean_pattern = re.sub(r"[%.*]", "", url_pattern).replace("/", "_")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+            vector_store_name = f"kb_{clean_pattern}_{timestamp}"
+            click.echo(f"Auto-generated knowledge base name: {vector_store_name}")
+
+        # Parse comma-separated values
+        status_codes_list = (
+            [int(x.strip()) for x in status_codes.split(",")] if status_codes else None
+        )
+        mime_types_list = (
+            [x.strip() for x in mime_types.split(",")] if mime_types else None
+        )
+
+        # Create RAG agent
+        rag_agent = CCVecRAGAgent(llama_stack_url=llama_stack_url)
+
+        # Show progress
+        click.echo(f"Creating knowledge base from Common Crawl pattern: {url_pattern}")
+        click.echo(f"Limit: {limit} pages")
+        click.echo(f"Crawl: {crawl}")
+
+        # Create knowledge base
+        result = rag_agent.create_knowledge_base_from_common_crawl(
+            url_pattern=url_pattern,
+            vector_store_name=vector_store_name,
+            limit=limit,
+            crawl=crawl,
+            status_codes=status_codes_list,
+            mime_types=mime_types_list,
+            embedding_model=embedding_model,
+            embedding_dimension=embedding_dimension,
+            provider_id=provider_id,
+        )
+
+        if output == "json":
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"\n✅ Knowledge base created successfully!")
+            click.echo(f"   Name: {result['vector_store_name']}")
+            click.echo(f"   ID: {result['vector_store_id']}")
+            click.echo(f"   Documents: {result['total_documents']}")
+            click.echo(f"   Embedding Model: {result['embedding_model']}")
+            click.echo(f"   Provider: {result['provider_id']}")
+            click.echo(f"\nYou can now query it with:")
+            click.echo(
+                f"   uv run cc-vec rag-query '{result['vector_store_id']}' 'your question here'"
+            )
+
+    except Exception as e:
+        logger.error("RAG knowledge base creation failed", exc_info=True)
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("vector_store_id")
+@click.argument("query")
+@click.option(
+    "--model",
+    default="meta-llama/Llama-3.3-70B-Instruct",
+    help="Model to use for generation",
+)
+@click.option(
+    "--llama-stack-url",
+    help="Llama Stack server URL (defaults to LLAMA_STACK_PORT env var)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Choice(["json", "text"]),
+    default="text",
+    help="Output format",
+)
+@click.option("--save", help="Save response to file")
+@click.pass_context
+def rag_query(
+    ctx,
+    vector_store_id,
+    query,
+    model,
+    llama_stack_url,
+    output,
+    save,
+):
+    """Query a Llama Stack knowledge base for RAG responses.
+
+    This queries the knowledge base using Llama Stack's Responses API with file_search tool
+    to provide AI-generated answers based on the indexed Common Crawl content.
+
+    Example: uv run cc-vec rag-query vs_abc123 "What is machine learning?"
+    """
+    try:
+        from ..rag_agent import CCVecRAGAgent
+
+        # Create RAG agent
+        rag_agent = CCVecRAGAgent(llama_stack_url=llama_stack_url, model=model)
+
+        click.echo(f"Querying knowledge base {vector_store_id}...")
+        click.echo(f"Query: {query}")
+        click.echo(f"Model: {model}")
+        click.echo()
+
+        # Query knowledge base
+        result = rag_agent.query_knowledge_base(vector_store_id, query, model=model)
+
+        if output == "json":
+            # Convert response to serializable format
+            serializable_result = {
+                "query": result["query"],
+                "vector_store_id": result["vector_store_id"],
+                "model": result["model"],
+                "response": str(
+                    result["response"]
+                ),  # Convert response object to string
+            }
+            click.echo(json.dumps(serializable_result, indent=2))
+        else:
+            click.echo("🤖 AI Response:")
+            click.echo("-" * 60)
+            click.echo(str(result["response"]))
+            click.echo("-" * 60)
+
+        # Save to file if requested
+        if save:
+            with open(save, "w", encoding="utf-8") as f:
+                f.write(f"Query: {query}\n")
+                f.write(f"Knowledge Base: {vector_store_id}\n")
+                f.write(f"Model: {model}\n")
+                f.write(f"Timestamp: {ctx.obj.get('timestamp', 'N/A')}\n\n")
+                f.write("Response:\n")
+                f.write("-" * 60 + "\n")
+                f.write(str(result["response"]))
+                f.write("\n" + "-" * 60 + "\n")
+
+            click.echo(f"\nResponse saved to: {save}")
+
+    except Exception as e:
+        logger.error("RAG query failed", exc_info=True)
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--llama-stack-url",
+    help="Llama Stack server URL (defaults to LLAMA_STACK_PORT env var)",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Choice(["json", "text"]),
+    default="text",
+    help="Output format",
+)
+@click.pass_context
+def rag_list(ctx, llama_stack_url, output):
+    """List available Llama Stack knowledge bases for RAG."""
+    try:
+        from ..rag_agent import CCVecRAGAgent
+
+        # Create RAG agent
+        rag_agent = CCVecRAGAgent(llama_stack_url=llama_stack_url)
+
+        # List knowledge bases
+        knowledge_bases = rag_agent.list_knowledge_bases()
+
+        if output == "json":
+            click.echo(json.dumps(knowledge_bases, indent=2))
+        else:
+            if not knowledge_bases:
+                click.echo("No knowledge bases found.")
+            else:
+                click.echo(f"Found {len(knowledge_bases)} knowledge base(s):\n")
+                for kb in knowledge_bases:
+                    click.echo(f"📚 {kb['name']}")
+                    click.echo(f"   ID: {kb['id']}")
+                    click.echo(f"   Status: {kb['status']}")
+                    click.echo(f"   Files: {kb['file_count']}")
+                    if kb.get("created_at"):
+                        click.echo(f"   Created: {kb['created_at']}")
+                    click.echo()
+
+    except Exception as e:
+        logger.error("RAG list failed", exc_info=True)
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("vector_store_id")
+@click.option(
+    "--llama-stack-url",
+    help="Llama Stack server URL (defaults to LLAMA_STACK_PORT env var)",
+)
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Choice(["json", "text"]),
+    default="text",
+    help="Output format",
+)
+@click.pass_context
+def rag_delete(ctx, vector_store_id, llama_stack_url, confirm, output):
+    """Delete a Llama Stack knowledge base."""
+    try:
+        from ..rag_agent import CCVecRAGAgent
+
+        # Show confirmation unless --confirm flag is used
+        if not confirm:
+            click.echo(
+                f"Are you sure you want to delete knowledge base '{vector_store_id}'?"
+            )
+            if not click.confirm("This action cannot be undone"):
+                click.echo("Deletion cancelled.")
+                return
+
+        # Create RAG agent
+        rag_agent = CCVecRAGAgent(llama_stack_url=llama_stack_url)
+
+        # Delete knowledge base
+        result = rag_agent.delete_knowledge_base(vector_store_id)
+
+        if output == "json":
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"✅ Successfully deleted knowledge base: {vector_store_id}")
+
+    except Exception as e:
+        logger.error("RAG delete failed", exc_info=True)
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+@click.option(
+    "--llama-stack-url",
+    help="Llama Stack server URL (defaults to LLAMA_STACK_PORT env var)",
+)
+@click.option(
+    "--model",
+    default="meta-llama/Llama-3.3-70B-Instruct",
+    help="Model to use for generation",
+)
+@click.pass_context
+def rag_chat(ctx, llama_stack_url, model):
+    """Start an interactive chat session with RAG knowledge bases.
+
+    This provides a conversational interface for creating and querying knowledge bases
+    from Common Crawl data using Llama Stack.
+
+    Example: uv run cc-vec rag-chat
+    """
+    try:
+        from ..rag_agent import create_interactive_agent
+
+        # Create interactive agent
+        interactive_agent = create_interactive_agent(
+            llama_stack_url=llama_stack_url, model=model
+        )
+
+        # Run interactive session
+        interactive_agent.run_interactive_session()
+
+    except KeyboardInterrupt:
+        click.echo("\nGoodbye!")
+    except Exception as e:
+        logger.error("RAG chat failed", exc_info=True)
+        click.echo(f"❌ Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
 @click.option(
     "--mode",
     type=click.Choice(["stdio", "http"]),
@@ -847,10 +1180,11 @@ def mcp_serve(ctx, mode, host, port, transport, config_file):
     """
     try:
         if mode == "stdio":
-            # Use the existing stdio server
-            from ..mcp.server import CCVecServer
             import asyncio
             import sys
+
+            # Use the existing stdio server
+            from ..mcp.server import CCVecServer
 
             # In stdio mode, we must NOT output anything to stdout except JSON-RPC messages
             # Redirect any print/click.echo statements to stderr
@@ -877,9 +1211,10 @@ def mcp_serve(ctx, mode, host, port, transport, config_file):
             asyncio.run(server.run())
 
         elif mode == "http":
+            from pathlib import Path
+
             # Use the HTTP server
             from ..mcp.http_server import CCVecHTTPServer
-            from pathlib import Path
 
             click.echo("Starting CC-Vec MCP server in http mode...")
             click.echo(f"Host: {host}")

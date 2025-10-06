@@ -1,17 +1,25 @@
 """cc-vec: Common Crawl vectorization toolkit."""
 
-# Public API - types and configuration
-from .types import (
-    FilterConfig,
-    AthenaSettings,
-    StatsResponse,
-    SearchResponse,
-    CrawlRecord,
-    ProcessedContent,
+# Public API - simplified operations
+from .api import fetch, index, list_vector_stores, query_vector_store, search, stats
+
+# Public API - RAG agent
+from .rag_agent import (
+    CCVecRAGAgent,
+    create_interactive_agent,
+    create_rag_agent,
+    InteractiveRAGAgent,
 )
 
-# Public API - simplified operations
-from .api import stats, search, fetch, index, list_vector_stores, query_vector_store
+# Public API - types and configuration
+from .types import (
+    AthenaSettings,
+    CrawlRecord,
+    FilterConfig,
+    ProcessedContent,
+    SearchResponse,
+    StatsResponse,
+)
 
 __all__ = [
     # Types and configuration
@@ -28,6 +36,11 @@ __all__ = [
     "index",
     "list_vector_stores",
     "query_vector_store",
+    # RAG Agent
+    "CCVecRAGAgent",
+    "InteractiveRAGAgent",
+    "create_rag_agent",
+    "create_interactive_agent",
 ]
 
 __version__ = "0.1.0"
