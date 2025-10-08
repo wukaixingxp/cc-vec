@@ -30,6 +30,10 @@ class CCVecConfig:
             openai=OpenAISettings(
                 api_key=os.getenv("OPENAI_API_KEY"),
                 base_url=os.getenv("OPENAI_BASE_URL"),
+                embedding_model=os.getenv("OPENAI_EMBEDDING_MODEL"),
+                embedding_dimensions=int(os.getenv("OPENAI_EMBEDDING_DIMENSIONS"))
+                if os.getenv("OPENAI_EMBEDDING_DIMENSIONS")
+                else None,
             ),
             logging=LoggingSettings(
                 level=os.getenv("LOG_LEVEL", "INFO"),

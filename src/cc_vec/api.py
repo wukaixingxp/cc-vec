@@ -229,10 +229,12 @@ def index(
     )
     athena_client = _get_athena_client()
     s3_client = _get_s3_client()
+    openai_client = _get_openai_client()
     return index_lib(
         filter_config,
         athena_client,
         vector_store_name,
+        openai_client=openai_client,
         s3_client=s3_client,
         crawl=crawl,
         limit=limit,
@@ -241,18 +243,22 @@ def index(
     )
 
 
-def list_vector_stores() -> List[Dict[str, Any]]:
+def list_vector_stores(cc_vec_only: bool = True) -> List[Dict[str, Any]]:
     """List available OpenAI vector stores.
+
+    Args:
+        cc_vec_only: If True, only return vector stores created by cc-vec (default: True)
 
     Returns:
         List of vector store information dictionaries
     """
-    return list_vector_stores_lib()
+    openai_client = _get_openai_client()
+    return list_vector_stores_lib(openai_client, cc_vec_only)
 
 
 def query_vector_store(
     vector_store_id: str, query: str, *, limit: int = 5
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Query a vector store for relevant content.
 
     Args:
@@ -261,9 +267,10 @@ def query_vector_store(
         limit: Maximum number of results to return
 
     Returns:
-        List of search results with content and metadata
+        Dictionary with search results and metadata
     """
-    return query_vector_store_lib(vector_store_id, query, limit)
+    openai_client = _get_openai_client()
+    return query_vector_store_lib(vector_store_id, query, limit, openai_client)
 
 
 def delete_vector_store(vector_store_id: str) -> Dict[str, Any]:
@@ -275,7 +282,8 @@ def delete_vector_store(vector_store_id: str) -> Dict[str, Any]:
     Returns:
         Dictionary with deletion result
     """
-    return delete_vector_store_lib(vector_store_id)
+    openai_client = _get_openai_client()
+    return delete_vector_store_lib(vector_store_id, openai_client)
 
 
 def delete_vector_store_by_name(vector_store_name: str) -> Dict[str, Any]:
@@ -287,4 +295,5 @@ def delete_vector_store_by_name(vector_store_name: str) -> Dict[str, Any]:
     Returns:
         Dictionary with deletion result
     """
-    return delete_vector_store_by_name_lib(vector_store_name)
+    openai_client = _get_openai_client()
+    return delete_vector_store_by_name_lib(vector_store_name, openai_client)

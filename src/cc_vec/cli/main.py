@@ -388,12 +388,17 @@ def fetch(
     default="text",
     help="Output format",
 )
+@click.option(
+    "--all",
+    is_flag=True,
+    help="Show all vector stores, not just cc-vec created ones",
+)
 @click.pass_context
-def list(ctx, output):
+def list(ctx, output, all):
     """List available OpenAI vector stores."""
     try:
         # Use the simplified API that handles OpenAI key validation
-        stores = list_vector_stores_function()
+        stores = list_vector_stores_function(cc_vec_only=not all)
 
         if output == "json":
             click.echo(json.dumps(stores, indent=2))

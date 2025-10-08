@@ -187,6 +187,7 @@ class BaseHandler(ABC):
             "chunk_size": "Maximum chunk size in tokens (100-4096, default: 800)",
             "overlap": "Token overlap between chunks (default: 400, max: half of chunk_size)",
             "max_bytes": "Maximum characters to display per record (default: 1024)",
+            "cc_vec_only": "If true, only show vector stores created by cc-vec (default: true)",
         }
 
         return descriptions.get(param_name, f"{param_name.replace('_', ' ').title()}")

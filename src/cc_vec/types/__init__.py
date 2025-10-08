@@ -14,8 +14,6 @@ from .models import (
     FilterConfig,
     CrawlRecord,
     ProcessedContent,
-    VectorStoreConfig,
-    PipelineConfig,
 )
 
 # Response types
@@ -42,8 +40,6 @@ __all__ = [
     "FilterConfig",
     "CrawlRecord",
     "ProcessedContent",
-    "VectorStoreConfig",
-    "PipelineConfig",
     # Response types
     "StatsResponse",
     "SearchResponse",
