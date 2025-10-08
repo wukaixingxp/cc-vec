@@ -10,6 +10,8 @@ class OpenAISettings:
 
     api_key: Optional[str] = None
     base_url: Optional[str] = None
+    embedding_model: Optional[str] = None
+    embedding_dimensions: Optional[int] = None
 
     def is_configured(self) -> bool:
         """Check if OpenAI is properly configured."""

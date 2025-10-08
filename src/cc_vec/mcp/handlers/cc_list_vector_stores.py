@@ -19,7 +19,8 @@ class CCListVectorStoresHandler(BaseHandler):
     async def handle(self, args: Dict[str, Any]) -> List[TextContent]:
         """Handle cc_list_vector_stores tool calls."""
         try:
-            stores = list_vector_stores_function()
+            cc_vec_only = args.get("cc_vec_only", True)
+            stores = list_vector_stores_function(cc_vec_only=cc_vec_only)
 
             if not stores:
                 response_text = "No vector stores found."

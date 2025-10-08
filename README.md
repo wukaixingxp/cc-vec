@@ -14,7 +14,9 @@ Search, analyze, and index Common Crawl data into vector stores for RAG applicat
 - **`AWS_SECRET_ACCESS_KEY`** - Required for Athena/S3 access (needed to run Athena queries)
 - **`AWS_SESSION_TOKEN`** - Optional for Athena/S3 access (needed to run Athena queries). This is required for temporary credentials
 - **`OPENAI_API_KEY`** - Required for vector operations (index, query, list)
-- `OPENAI_BASE_URL` - Optional custom OpenAI endpoint
+- `OPENAI_BASE_URL` - Optional custom OpenAI endpoint (e.g., `http://localhost:8321/v1` for Llama Stack)
+- `OPENAI_EMBEDDING_MODEL` - Embedding model to use (e.g., `text-embedding-3-small`, `nomic-embed-text`)
+- `OPENAI_EMBEDDING_DIMENSIONS` - Embedding dimensions (optional, model-specific)
 - `AWS_DEFAULT_REGION` - AWS region (defaults to us-west-2)
 - `LOG_LEVEL` - Logging level (defaults to INFO)
 
@@ -42,8 +44,11 @@ uv run cc-vec index "%.github.io" "ml-research" --limit 50 --chunk-size 800 --ov
 # Vector store name is optional - will auto-generate if not provided
 uv run cc-vec index "%.github.io" --limit 50
 
-# List all vector stores
+# List cc-vec vector stores (default - only shows stores created by cc-vec)
 uv run cc-vec list --output json
+
+# List ALL vector stores (including non-cc-vec stores)
+uv run cc-vec list --all
 
 # Query vector store by ID for RAG
 uv run cc-vec query "What is machine learning?" --vector-store-id "vs-123abc" --limit 5
@@ -82,11 +87,15 @@ print(f"Created vector store: {result['vector_store_name']}")
 print(f"Vector Store ID: {result['vector_store_id']}")
 print(f"Processed {result['total_pages']} pages")
 
-# List all vector stores
+# List cc-vec vector stores (default - only shows stores created by cc-vec)
 stores = list_vector_stores()
 print(f"Available stores: {len(stores)}")
 for store in stores[:3]:
     print(f"  {store['name']} (ID: {store['id']}, Status: {store['status']})")
+
+# List ALL vector stores (including non-cc-vec stores)
+all_stores = list_vector_stores(cc_vec_only=False)
+print(f"All stores: {len(all_stores)}")
 
 # Query vector store for RAG
 query_results = query_vector_store("ml-research", "What is machine learning?", limit=5)
@@ -131,7 +140,7 @@ cc_fetch - Download actual content from matched URLs
 
 # Vector operations (require OPENAI_API_KEY)
 cc_index - Create and populate vector stores from Common Crawl content
-cc_list_vector_stores - List all available OpenAI vector stores
+cc_list_vector_stores - List OpenAI vector stores (defaults to cc-vec created only)
 cc_query - Query vector stores for relevant content
 ```
 
@@ -139,7 +148,8 @@ cc_query - Query vector stores for relevant content
 - "Use cc_search to find GitHub Pages sites: pattern=%.github.io, limit=10"
 - "Use cc_stats to analyze education sites: pattern=%.edu"
 - "Use cc_index to create vector store: name=research, pattern=%.arxiv.org, limit=100"
-- "Use cc_list_vector_stores to show available stores"
+- "Use cc_list_vector_stores to show cc-vec stores (default)"
+- "Use cc_list_vector_stores with cc_vec_only=false to show all vector stores"
 - "Use cc_query to search: vector_store_id=vs-123, query=machine learning"
 
 ## License
