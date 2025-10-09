@@ -12,6 +12,7 @@ from .config import (
 # Data models
 from .models import (
     FilterConfig,
+    VectorStoreConfig,
     CrawlRecord,
     ProcessedContent,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "load_config",
     # Models
     "FilterConfig",
+    "VectorStoreConfig",
     "CrawlRecord",
     "ProcessedContent",
     # Response types

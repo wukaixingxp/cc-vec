@@ -26,18 +26,15 @@ class CrawlQueryBuilder:
         self,
         filter_config: FilterConfig,
         limit: Optional[int] = None,
-        crawl: str = "CC-MAIN-2024-33",
     ):
         """Initialize query builder.
 
         Args:
-            filter_config: FilterConfig with search criteria
+            filter_config: FilterConfig with search criteria (including crawl_ids)
             limit: Maximum number of results
-            crawl: Specific crawl to search (e.g., "CC-MAIN-2025-33")
         """
         self.filter_config = filter_config
         self.limit = limit
-        self.crawl = crawl
         self.database = "ccindex"
         self.table = "ccindex"
 
@@ -118,6 +115,75 @@ class CrawlQueryBuilder:
 
         return value
 
+    @staticmethod
+    def _build_exact_match_condition(column: str, values: List[str]) -> str:
+        """Build exact match condition using = or IN based on number of values.
+
+        Args:
+            column: Column name
+            values: List of string values (already validated/escaped)
+
+        Returns:
+            SQL condition string
+
+        Examples:
+            >>> _build_exact_match_condition("crawl", ["CC-MAIN-2024-33"])
+            "crawl = 'CC-MAIN-2024-33'"
+            >>> _build_exact_match_condition("crawl", ["CC-MAIN-2024-33", "CC-MAIN-2024-30"])
+            "crawl IN ('CC-MAIN-2024-33','CC-MAIN-2024-30')"
+        """
+        if len(values) == 1:
+            return f"{column} = '{values[0]}'"
+        else:
+            value_list = "','".join(values)
+            return f"{column} IN ('{value_list}')"
+
+    @staticmethod
+    def _build_exact_match_condition_int(column: str, values: List[int]) -> str:
+        """Build exact match condition for integers using = or IN based on number of values.
+
+        Args:
+            column: Column name
+            values: List of integer values (already validated)
+
+        Returns:
+            SQL condition string
+
+        Examples:
+            >>> _build_exact_match_condition_int("fetch_status", [200])
+            "fetch_status = 200"
+            >>> _build_exact_match_condition_int("fetch_status", [200, 201, 202])
+            "fetch_status IN (200,201,202)"
+        """
+        if len(values) == 1:
+            return f"{column} = {values[0]}"
+        else:
+            value_list = ",".join(map(str, values))
+            return f"{column} IN ({value_list})"
+
+    @staticmethod
+    def _build_like_conditions(column: str, values: List[str]) -> str:
+        """Build LIKE conditions combined with OR.
+
+        Args:
+            column: Column name
+            values: List of string values (already escaped)
+
+        Returns:
+            SQL condition string (wrapped in parentheses if multiple)
+
+        Examples:
+            >>> _build_like_conditions("url", ["%.edu%"])
+            "url LIKE '%.edu%'"
+            >>> _build_like_conditions("url", ["%.edu%", "%.gov%"])
+            "(url LIKE '%.edu%' OR url LIKE '%.gov%')"
+        """
+        conditions = [f"{column} LIKE '{value}'" for value in values]
+        if len(conditions) == 1:
+            return conditions[0]
+        else:
+            return f"({' OR '.join(conditions)})"
+
     def to_sql(self, count_only: bool = False) -> str:
         """Build and return SQL query string with SQL injection protection.
 
@@ -130,13 +196,11 @@ class CrawlQueryBuilder:
         Raises:
             ValueError: If any input values are invalid or potentially malicious
         """
-        safe_crawl = self._validate_crawl_id(self.crawl)
-
         if count_only:
             select_clause = "SELECT COUNT(*)"
         else:
             select_clause = """
-            SELECT 
+            SELECT
                 url,
                 url_host_name,
                 fetch_time,
@@ -149,53 +213,63 @@ class CrawlQueryBuilder:
                 warc_record_length
             """
 
-        where_conditions = [f"crawl = '{safe_crawl}'", "subset = 'warc'"]
+        # Handle crawl IDs (multiple or single), default to latest if not specified
+        if self.filter_config.crawl_ids:
+            validated_crawls = [
+                self._validate_crawl_id(cid) for cid in self.filter_config.crawl_ids
+            ]
+        else:
+            # Default to latest crawl if not specified
+            validated_crawls = [self._validate_crawl_id("CC-MAIN-2024-33")]
+
+        where_conditions = [
+            self._build_exact_match_condition("crawl", validated_crawls),
+            "subset = 'warc'",
+        ]
 
         if self.filter_config.url_patterns:
-            url_conditions = []
-            for pattern in self.filter_config.url_patterns:
-                sql_pattern = pattern.replace("*", "%")
-                safe_pattern = self._escape_sql_string(sql_pattern)
-                url_conditions.append(f"url LIKE '{safe_pattern}'")
+            safe_patterns = [
+                self._escape_sql_string(pattern.replace("*", "%"))
+                for pattern in self.filter_config.url_patterns
+            ]
+            where_conditions.append(self._build_like_conditions("url", safe_patterns))
 
-            if len(url_conditions) == 1:
-                where_conditions.append(url_conditions[0])
-            else:
-                where_conditions.append(f"({' OR '.join(url_conditions)})")
+        if self.filter_config.url_host_names:
+            safe_hosts = [
+                self._escape_sql_string(hostname)
+                for hostname in self.filter_config.url_host_names
+            ]
+            where_conditions.append(self._build_like_conditions("url_host_name", safe_hosts))
 
         if self.filter_config.status_codes:
             validated_codes = [
                 self._validate_integer(code, 100, 599)
                 for code in self.filter_config.status_codes
             ]
-
-            if len(validated_codes) == 1:
-                where_conditions.append(f"fetch_status = {validated_codes[0]}")
-            else:
-                status_list = ",".join(map(str, validated_codes))
-                where_conditions.append(f"fetch_status IN ({status_list})")
+            where_conditions.append(
+                self._build_exact_match_condition_int("fetch_status", validated_codes)
+            )
 
         if self.filter_config.mime_types:
-            mime_conditions = []
-            for mime_type in self.filter_config.mime_types:
-                safe_mime = self._escape_sql_string(mime_type)
-                mime_conditions.append(f"content_mime_type LIKE '{safe_mime}%'")
-
-            if len(mime_conditions) == 1:
-                where_conditions.append(mime_conditions[0])
-            else:
-                where_conditions.append(f"({' OR '.join(mime_conditions)})")
+            safe_mimes = [
+                self._escape_sql_string(mime_type) + "%"
+                for mime_type in self.filter_config.mime_types
+            ]
+            where_conditions.append(self._build_like_conditions("content_mime_type", safe_mimes))
 
         if self.filter_config.languages:
-            lang_conditions = []
-            for language in self.filter_config.languages:
-                safe_lang = self._escape_sql_string(language)
-                lang_conditions.append(f"content_languages LIKE '%{safe_lang}%'")
+            safe_langs = [
+                "%" + self._escape_sql_string(language) + "%"
+                for language in self.filter_config.languages
+            ]
+            where_conditions.append(self._build_like_conditions("content_languages", safe_langs))
 
-            if len(lang_conditions) == 1:
-                where_conditions.append(lang_conditions[0])
-            else:
-                where_conditions.append(f"({' OR '.join(lang_conditions)})")
+        if self.filter_config.charsets:
+            safe_charsets = [
+                self._escape_sql_string(charset) + "%"
+                for charset in self.filter_config.charsets
+            ]
+            where_conditions.append(self._build_like_conditions("content_charset", safe_charsets))
 
         if self.filter_config.date_from:
             safe_date_from = self._escape_sql_string(self.filter_config.date_from)
@@ -332,14 +406,12 @@ class CCAthenaClient:
         self,
         filter_config: FilterConfig,
         limit: Optional[int] = None,
-        crawl: str = "CC-MAIN-2024-33",
     ) -> List[CrawlRecord]:
         """Search Common Crawl data using FilterConfig.
 
         Args:
-            filter_config: FilterConfig with search criteria
+            filter_config: FilterConfig with search criteria (including crawl_ids)
             limit: Maximum number of results (uses settings.max_results if None)
-            crawl: Specific crawl to search (e.g., "CC-MAIN-2024-33")
 
         Returns:
             List of CrawlRecord objects
@@ -350,7 +422,7 @@ class CCAthenaClient:
         if limit is None:
             limit = self.settings.max_results
 
-        query_builder = CrawlQueryBuilder(filter_config, limit, crawl)
+        query_builder = CrawlQueryBuilder(filter_config, limit)
         query = query_builder.to_sql()
 
         logger.info(f"Searching Common Crawl with filter: {filter_config.url_patterns}")
@@ -371,6 +443,37 @@ class CCAthenaClient:
 
         except Exception as e:
             raise AthenaQueryError(f"Athena search failed: {e}")
+
+    def list_crawls(self) -> List[str]:
+        """List available crawls from Common Crawl index.
+
+        Returns:
+            List of crawl IDs sorted in descending order (newest first)
+
+        Raises:
+            AthenaQueryError: If query fails
+        """
+        query = """
+        SELECT DISTINCT crawl
+        FROM ccindex.ccindex
+        WHERE subset = 'warc'
+        ORDER BY crawl DESC
+        """
+
+        logger.info("Listing available crawls from Common Crawl")
+        logger.debug(f"Athena query: {query}")
+
+        try:
+            query_execution_id = self._execute_query(query)
+            results = self._get_query_results(query_execution_id)
+
+            crawls = [row[0] for row in results if row and row[0]]
+
+            logger.info(f"Found {len(crawls)} available crawls")
+            return crawls
+
+        except Exception as e:
+            raise AthenaQueryError(f"Failed to list crawls: {e}")
 
     def _execute_query(self, query: str) -> str:
         """Execute Athena query and return execution ID."""

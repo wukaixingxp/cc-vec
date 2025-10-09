@@ -7,6 +7,7 @@ from .cc_fetch import CCFetchHandler
 from .cc_index import CCIndexHandler
 from .cc_list_vector_stores import CCListVectorStoresHandler
 from .cc_query import CCQueryHandler
+from .cc_list_crawls import CCListCrawlsHandler
 
 __all__ = [
     "BaseHandler",
@@ -16,4 +17,5 @@ __all__ = [
     "CCIndexHandler",
     "CCListVectorStoresHandler",
     "CCQueryHandler",
+    "CCListCrawlsHandler",
 ]

@@ -15,6 +15,7 @@ from .handlers import (
     CCIndexHandler,
     CCListVectorStoresHandler,
     CCQueryHandler,
+    CCListCrawlsHandler,
 )
 from .. import api
 
@@ -79,6 +80,7 @@ class CCVecServer:
                 api_method=api.list_vector_stores
             ),
             "cc_query": CCQueryHandler(api_method=api.query_vector_store),
+            "cc_list_crawls": CCListCrawlsHandler(api_method=api.list_crawls),
         }
 
     def _setup_server(self):
@@ -106,6 +108,7 @@ class CCVecServer:
             "cc_index": "Index Common Crawl content into OpenAI vector store with advanced filtering and chunking",
             "cc_query": "Query OpenAI vector stores for relevant content",
             "cc_list_vector_stores": "List available OpenAI vector stores",
+            "cc_list_crawls": "List available Common Crawl dataset IDs",
         }
 
         tools = []

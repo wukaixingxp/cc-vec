@@ -17,6 +17,7 @@ from .handlers import (
     CCIndexHandler,
     CCListVectorStoresHandler,
     CCQueryHandler,
+    CCListCrawlsHandler,
 )
 
 logger = logging.getLogger(__name__)
@@ -107,6 +108,7 @@ class CCVecHTTPServer:
                 None, self._athena_client
             ),
             "cc_query": CCQueryHandler(None, self._athena_client),
+            "cc_list_crawls": CCListCrawlsHandler(None, self._athena_client),
         }
 
     def _register_tools(self):
@@ -229,6 +231,15 @@ class CCVecHTTPServer:
                 arguments["vector_store_id"] = vector_store_id
 
             result = await self.handlers["cc_query"].handle(arguments)
+            return "\n".join([content.text for content in result])
+
+        @self.server.tool(
+            name="cc_list_crawls",
+            description="List available Common Crawl dataset IDs",
+        )
+        async def cc_list_crawls() -> str:
+            """List available Common Crawl dataset IDs."""
+            result = await self.handlers["cc_list_crawls"].handle({})
             return "\n".join([content.text for content in result])
 
         # Add health check endpoint
