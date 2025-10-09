@@ -11,14 +11,12 @@ logger = logging.getLogger(__name__)
 def stats(
     filter_config: FilterConfig,
     athena_client: CCAthenaClient,
-    crawl: str = "CC-MAIN-2024-33",
 ) -> StatsResponse:
     """Execute stats with FilterConfig and CCAthenaClient.
 
     Args:
-        filter_config: FilterConfig with search criteria
+        filter_config: FilterConfig with search criteria (including crawl_ids)
         athena_client: Configured CCAthenaClient instance
-        crawl: Specific crawl to analyze
 
     Returns:
         StatsResponse with count and cost estimates
@@ -26,7 +24,7 @@ def stats(
     logger.info(f"Getting statistics for patterns: {filter_config.url_patterns}")
 
     try:
-        query_builder = CrawlQueryBuilder(filter_config, limit=None, crawl=crawl)
+        query_builder = CrawlQueryBuilder(filter_config, limit=None)
 
         count_query = query_builder.to_sql(count_only=True)
         logger.debug(f"Count query: {count_query}")
@@ -50,6 +48,13 @@ def stats(
             data_scanned_bytes / (1024**4)
         ) * 5.0  # Athena pricing: $5 per TB scanned
 
+        # Get crawl_id from filter_config or use default
+        crawl_id = (
+            filter_config.crawl_ids[0]
+            if filter_config.crawl_ids
+            else "CC-MAIN-2024-33"
+        )
+
         return StatsResponse(
             estimated_records=estimated_records,
             estimated_size_mb=data_scanned_bytes / (1024 * 1024),  # Convert bytes to MB
@@ -57,7 +62,7 @@ def stats(
             data_scanned_gb=data_scanned_bytes
             / (1024 * 1024 * 1024),  # Convert bytes to GB
             backend="athena",
-            crawl_id=crawl,
+            crawl_id=crawl_id,
         )
 
     except Exception as e:

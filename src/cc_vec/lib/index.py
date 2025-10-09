@@ -5,9 +5,8 @@ import logging
 from typing import List, Optional, Tuple, Dict, Any
 from openai import OpenAI
 
-from ..types import FilterConfig, CrawlRecord
+from ..types import FilterConfig, CrawlRecord, VectorStoreConfig
 from ..core import CCAthenaClient, CCS3Client
-from ..types.config import load_config
 from .fetch import fetch
 
 logger = logging.getLogger(__name__)
@@ -16,68 +15,47 @@ logger = logging.getLogger(__name__)
 class VectorStoreLoader:
     """Loads Common Crawl content into OpenAI vector stores."""
 
-    def __init__(self, openai_client: OpenAI):
+    def __init__(self, openai_client: OpenAI, vector_store_config: VectorStoreConfig):
         """Initialize vector store loader.
 
         Args:
             openai_client: Pre-configured OpenAI client
+            vector_store_config: Vector store configuration
         """
-        config = load_config()
-
         self.client = openai_client
-        self.embedding_model = config.openai.embedding_model
-        self.embedding_dimensions = config.openai.embedding_dimensions
+        self.config = vector_store_config
 
-    def create_vector_store(
-        self, name: str, chunk_size: int = 800, overlap: int = 400
-    ) -> str:
+    def create_vector_store(self) -> str:
         """Create a new vector store with chunking strategy and embedding configuration.
-
-        Args:
-            name: Name for the vector store
-            chunk_size: Maximum chunk size in tokens (100-4096, default 800)
-            overlap: Token overlap between chunks (default 400, must not exceed half of chunk_size)
 
         Returns:
             Vector store ID
         """
-        chunk_size = max(100, min(4096, chunk_size))  # Clamp to valid range
-        max_overlap = chunk_size // 2
-        overlap = min(
-            max_overlap, overlap
-        )  # Ensure overlap doesn't exceed half of chunk_size
-
         logger.info(
-            f"Creating vector store: {name} with max_chunk_size_tokens={chunk_size}, chunk_overlap_tokens={overlap}"
+            f"Creating vector store: {self.config.name} with max_chunk_size_tokens={self.config.chunk_size}, chunk_overlap_tokens={self.config.overlap}"
         )
-        if self.embedding_model:
-            logger.info(f"Using embedding model: {self.embedding_model}")
-        if self.embedding_dimensions:
-            logger.info(f"Using embedding dimensions: {self.embedding_dimensions}")
+        logger.info(f"Using embedding model: {self.config.embedding_model}")
+        logger.info(f"Using embedding dimensions: {self.config.embedding_dimensions}")
 
         create_kwargs = {
-            "name": name,
+            "name": self.config.name,
             "metadata": {"created_by": "cc-vec", "cc_vec_version": "0.1.0"},
             "chunking_strategy": {
                 "type": "static",
                 "static": {
-                    "max_chunk_size_tokens": chunk_size,
-                    "chunk_overlap_tokens": overlap,
+                    "max_chunk_size_tokens": self.config.chunk_size,
+                    "chunk_overlap_tokens": self.config.overlap,
                 },
+            },
+            "extra_body": {
+                "embedding_model": self.config.embedding_model,
+                "embedding_dimensions": self.config.embedding_dimensions,
             },
         }
 
-        extra_body = {}
-        if self.embedding_model:
-            extra_body["embedding_model"] = self.embedding_model
-        if self.embedding_dimensions:
-            extra_body["embedding_dimensions"] = self.embedding_dimensions
-        if extra_body:
-            create_kwargs["extra_body"] = extra_body
-
         vector_store = self.client.vector_stores.create(**create_kwargs)
 
-        logger.info(f"Created vector store {name} with ID: {vector_store.id}")
+        logger.info(f"Created vector store {self.config.name} with ID: {vector_store.id}")
         return vector_store.id
 
     def prepare_files(
@@ -187,13 +165,10 @@ Meta Description: {processed_content.get("meta_description", "N/A")}
 def index(
     filter_config: FilterConfig,
     athena_client: CCAthenaClient,
-    vector_store_name: str,
+    vector_store_config: VectorStoreConfig,
     openai_client: OpenAI,
     s3_client: Optional[CCS3Client] = None,
-    crawl: str = "CC-MAIN-2024-33",
     limit: int = 10,
-    chunk_size: int = 1000,
-    overlap: int = 100,
 ) -> Dict[str, Any]:
     """Index Common Crawl content into a vector store.
 
@@ -201,28 +176,32 @@ def index(
     an OpenAI vector store for search and retrieval.
 
     Args:
-        filter_config: Filter configuration with URL patterns
+        filter_config: Filter configuration with search criteria
         athena_client: Athena client for searching records
-        vector_store_name: Name for the vector store (will be created if needed)
+        vector_store_config: Vector store configuration including name and chunking params
         openai_client: Pre-configured OpenAI client
         s3_client: Optional S3 client for fetching content
-        crawl: Crawl ID to search in
         limit: Maximum number of records to process
 
     Returns:
         Dictionary with index results including vector store ID and upload status
     """
     logger.info(
-        f"Indexing content into vector store '{vector_store_name}' (limit: {limit})"
+        f"Indexing content into vector store '{vector_store_config.name}' (limit: {limit})"
     )
 
     if s3_client is None:
         s3_client = CCS3Client()
 
-    loader = VectorStoreLoader(openai_client)
+    loader = VectorStoreLoader(openai_client, vector_store_config)
+
+    # Get crawl from filter_config or use default
+    crawl_id = (
+        filter_config.crawl_ids[0] if filter_config.crawl_ids else "CC-MAIN-2024-33"
+    )
 
     logger.info("Fetching and processing content from Common Crawl...")
-    fetch_results = fetch(filter_config, athena_client, s3_client, crawl, limit)
+    fetch_results = fetch(filter_config, athena_client, s3_client, limit)
 
     successful_fetches = [
         (record, processed_content)
@@ -246,14 +225,14 @@ def index(
         f"Successfully processed {len(successful_fetches)}/{len(fetch_results)} records into {total_chunks} chunks"
     )
 
-    vector_store_id = loader.create_vector_store(vector_store_name, chunk_size, overlap)
+    vector_store_id = loader.create_vector_store()
 
     upload_result = loader.upload_to_vector_store(vector_store_id, successful_fetches)
 
     return {
         "vector_store_id": vector_store_id,
-        "vector_store_name": vector_store_name,
-        "crawl": crawl,
+        "vector_store_name": vector_store_config.name,
+        "crawl": crawl_id,
         "total_fetched": len(fetch_results),
         "successful_fetches": len(successful_fetches),
         "total_chunks": upload_result.get("total_chunks", total_chunks),

@@ -3,6 +3,7 @@
 # Public API - types and configuration
 from .types import (
     FilterConfig,
+    VectorStoreConfig,
     AthenaSettings,
     StatsResponse,
     SearchResponse,
@@ -11,11 +12,20 @@ from .types import (
 )
 
 # Public API - simplified operations
-from .api import stats, search, fetch, index, list_vector_stores, query_vector_store
+from .api import (
+    stats,
+    search,
+    fetch,
+    index,
+    list_vector_stores,
+    query_vector_store,
+    list_crawls,
+)
 
 __all__ = [
     # Types and configuration
     "FilterConfig",
+    "VectorStoreConfig",
     "AthenaSettings",
     "StatsResponse",
     "SearchResponse",
@@ -28,6 +38,7 @@ __all__ = [
     "index",
     "list_vector_stores",
     "query_vector_store",
+    "list_crawls",
 ]
 
 __version__ = "0.1.0"

@@ -2,6 +2,7 @@
 
 import gzip
 import logging
+import re
 from typing import List, Optional, Dict, Any
 from ..types import FilterConfig, CrawlRecord
 from ..core import CCAthenaClient, CCS3Client
@@ -15,16 +16,14 @@ def fetch(
     filter_config: FilterConfig,
     athena_client: CCAthenaClient,
     s3_client: Optional[CCS3Client] = None,
-    crawl: str = "CC-MAIN-2024-33",
     limit: int = 10,
 ) -> List[tuple[CrawlRecord, Optional[Dict[str, Any]]]]:
     """Fetch and process Common Crawl content for records matching filter criteria.
 
     Args:
-        filter_config: Filter configuration with URL patterns
+        filter_config: Filter configuration with search criteria (including crawl_ids)
         athena_client: Athena client for searching records
         s3_client: S3 client for fetching content (created if None)
-        crawl: Crawl ID to search in
         limit: Maximum number of records to fetch
 
     Returns:
@@ -35,7 +34,7 @@ def fetch(
         f"Fetching content for patterns: {filter_config.url_patterns} (limit: {limit})"
     )
 
-    records = search(filter_config, athena_client, crawl, limit)
+    records = search(filter_config, athena_client, limit)
 
     if not records:
         logger.info("No records found to fetch")
@@ -80,12 +79,19 @@ def fetch(
                 warc_content, str(record.url), include_chunks=False
             )
             if processed:
+                # Extract crawl_id from filename (format: crawl-data/CC-MAIN-2024-33/segments/...)
+                crawl_id = None
+                if record.filename:
+                    match = re.search(r'(CC-MAIN-\d{4}-\d{2})', record.filename)
+                    crawl_id = match.group(1)
+                assert(crawl_id is not None)
+
                 processed["crawl_metadata"] = {
                     "url": str(record.url),
                     "status": record.status,
                     "mime": record.mime,
                     "timestamp": record.timestamp,
-                    "crawl": crawl,
+                    "crawl": crawl_id,
                     "length": record.length,
                 }
 

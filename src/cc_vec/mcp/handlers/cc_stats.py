@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 from mcp.types import TextContent
 from .base import BaseHandler
 from ... import stats as stats_function
+from ...types import FilterConfig
 
 logger = logging.getLogger(__name__)
 
@@ -18,34 +19,48 @@ class CCStatsHandler(BaseHandler):
 
     async def handle(self, args: Dict[str, Any]) -> List[TextContent]:
         """Handle cc_stats tool calls."""
-        url_pattern = args["url_pattern"]
-        crawl = args.get("crawl", "CC-MAIN-2024-33")
+        url_pattern = args.get("url_pattern")
 
+        url_host_names = args.get("url_host_names")
+        crawl_ids = args.get("crawl_ids")
         status_codes = args.get("status_codes")
         mime_types = args.get("mime_types")
+        charsets = args.get("charsets")
         languages = args.get("languages")
         date_from = args.get("date_from")
         date_to = args.get("date_to")
         custom_filters = args.get("custom_filters")
 
+        # Convert url_pattern to list if provided
+        url_patterns_list = [url_pattern] if url_pattern else None
+
+        # Convert crawl_ids to list if needed
+        crawl_ids_list = crawl_ids
+
+        # Construct FilterConfig
+        filter_config = FilterConfig(
+            url_patterns=url_patterns_list,
+            url_host_names=url_host_names,
+            crawl_ids=crawl_ids_list,
+            status_codes=status_codes,
+            mime_types=mime_types,
+            charsets=charsets,
+            languages=languages,
+            date_from=date_from,
+            date_to=date_to,
+            custom_filters=custom_filters,
+        )
+
         try:
-            response = stats_function(
-                url_pattern,
-                crawl=crawl,
-                status_codes=status_codes,
-                mime_types=mime_types,
-                languages=languages,
-                date_from=date_from,
-                date_to=date_to,
-                custom_filters=custom_filters,
-            )
+            response = stats_function(filter_config)
 
             backend_info = f"via {response.backend.title()}"
             if response.crawl_id:
                 backend_info += f" - {response.crawl_id}"
 
+            filter_desc = f"pattern '{url_pattern}'" if url_pattern else "specified filters"
             response_text = (
-                f"Statistics for pattern '{url_pattern}' ({backend_info}):\n\n"
+                f"Statistics for {filter_desc} ({backend_info}):\n\n"
             )
 
             if response.backend == "athena":

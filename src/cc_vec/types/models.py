@@ -55,9 +55,12 @@ class ProcessedContent(BaseModel):
 class FilterConfig(BaseModel):
     """Configuration for filtering Common Crawl data."""
 
-    url_patterns: List[str] = Field(min_length=1)  # Must have at least one pattern
+    url_patterns: Optional[List[str]] = None  # Filter by URL pattern
+    url_host_names: Optional[List[str]] = None  # Filter by hostname
+    crawl_ids: Optional[List[str]] = None  # Filter by specific crawl IDs
     status_codes: Optional[List[int]] = Field(default=[200])
     mime_types: Optional[List[str]] = Field(default=["text/html"])
+    charsets: Optional[List[str]] = None  # Filter by content charset
     languages: Optional[List[str]] = None
     date_from: Optional[str] = None  # Format: yyyy, yyyyMM, or yyyyMMdd
     date_to: Optional[str] = None
@@ -73,10 +76,29 @@ class FilterConfig(BaseModel):
                     raise ValueError(f"Invalid HTTP status code: {code}")
         return v
 
-    @field_validator("url_patterns")
+
+class VectorStoreConfig(BaseModel):
+    """Configuration for vector store creation."""
+
+    name: str
+    chunk_size: int = 800
+    overlap: int = 400
+    embedding_model: str = "text-embedding-3-small"
+    embedding_dimensions: int = 1536
+
+    @field_validator("chunk_size")
     @classmethod
-    def validate_url_patterns(cls, v):
-        """Ensure URL patterns are not empty."""
-        if not v or all(not pattern.strip() for pattern in v):
-            raise ValueError("URL patterns cannot be empty")
+    def validate_chunk_size(cls, v):
+        """Validate chunk size is within OpenAI limits."""
+        if not (100 <= v <= 4096):
+            raise ValueError("chunk_size must be between 100 and 4096")
+        return v
+
+    @field_validator("overlap")
+    @classmethod
+    def validate_overlap(cls, v, info):
+        """Validate overlap doesn't exceed half of chunk_size."""
+        chunk_size = info.data.get("chunk_size", 800)
+        if v > chunk_size / 2:
+            raise ValueError(f"overlap ({v}) must not exceed half of chunk_size ({chunk_size})")
         return v

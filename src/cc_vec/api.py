@@ -4,7 +4,7 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from openai import OpenAI
-from .types import FilterConfig, CrawlRecord, StatsResponse
+from .types import FilterConfig, CrawlRecord, StatsResponse, VectorStoreConfig
 from .types.config import load_config
 from .core import CCAthenaClient, CCS3Client
 from .types import AthenaSettings
@@ -18,6 +18,7 @@ from .lib.delete_vector_store import delete_vector_store as delete_vector_store_
 from .lib.delete_vector_store import (
     delete_vector_store_by_name as delete_vector_store_by_name_lib,
 )
+from .lib.list_crawls import list_crawls as list_crawls_lib
 
 logger = logging.getLogger(__name__)
 
@@ -62,184 +63,81 @@ def _get_openai_client() -> OpenAI:
 
 
 def search(
-    url_pattern: str,
-    *,
+    filter_config: FilterConfig,
     limit: int = 10,
-    crawl: str = "CC-MAIN-2024-33",
-    status_codes: Optional[List[int]] = None,
-    mime_types: Optional[List[str]] = None,
-    languages: Optional[List[str]] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    custom_filters: Optional[List[str]] = None,
 ) -> List[CrawlRecord]:
-    """Search Common Crawl for URLs matching a pattern.
+    """Search Common Crawl for URLs matching filters.
 
     Args:
-        url_pattern: URL pattern to search (e.g. '%.github.io%')
+        filter_config: Filter configuration with search criteria
         limit: Maximum number of results to return
-        crawl: Common Crawl dataset to search
-        status_codes: HTTP status codes to filter by (default: [200])
-        mime_types: MIME types to filter by (default: ["text/html"])
-        languages: Languages to filter by (default: None)
-        date_from: Start date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        date_to: End date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        custom_filters: Additional CDX filter strings
 
     Returns:
         List of CrawlRecord objects
     """
-    filter_config = FilterConfig(
-        url_patterns=[url_pattern],
-        status_codes=status_codes,
-        mime_types=mime_types,
-        languages=languages,
-        date_from=date_from,
-        date_to=date_to,
-        custom_filters=custom_filters,
-    )
     athena_client = _get_athena_client()
-    return search_lib(filter_config, athena_client, crawl, limit)
+    return search_lib(filter_config, athena_client, limit)
 
 
 def stats(
-    url_pattern: str,
-    *,
-    crawl: str = "CC-MAIN-2024-33",
-    status_codes: Optional[List[int]] = None,
-    mime_types: Optional[List[str]] = None,
-    languages: Optional[List[str]] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    custom_filters: Optional[List[str]] = None,
+    filter_config: FilterConfig,
 ) -> StatsResponse:
-    """Get statistics for URLs matching a pattern.
+    """Get statistics for URLs matching filters.
 
     Args:
-        url_pattern: URL pattern to analyze (e.g. '%.github.io%')
-        crawl: Common Crawl dataset to analyze
-        status_codes: HTTP status codes to filter by (default: [200])
-        mime_types: MIME types to filter by (default: ["text/html"])
-        languages: Languages to filter by (default: None)
-        date_from: Start date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        date_to: End date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        custom_filters: Additional CDX filter strings
+        filter_config: Filter configuration with search criteria
 
     Returns:
         StatsResponse with count and cost estimates
     """
-    filter_config = FilterConfig(
-        url_patterns=[url_pattern],
-        status_codes=status_codes,
-        mime_types=mime_types,
-        languages=languages,
-        date_from=date_from,
-        date_to=date_to,
-        custom_filters=custom_filters,
-    )
     athena_client = _get_athena_client()
-    return stats_lib(filter_config, athena_client, crawl)
+    return stats_lib(filter_config, athena_client)
 
 
 def fetch(
-    url_pattern: str,
-    *,
+    filter_config: FilterConfig,
     limit: int = 10,
-    crawl: str = "CC-MAIN-2024-33",
-    status_codes: Optional[List[int]] = None,
-    mime_types: Optional[List[str]] = None,
-    languages: Optional[List[str]] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    custom_filters: Optional[List[str]] = None,
 ) -> List[tuple]:
-    """Fetch and process content for URLs matching a pattern.
+    """Fetch and process content for URLs matching filters.
 
     Args:
-        url_pattern: URL pattern to fetch (e.g. '%.github.io%')
+        filter_config: Filter configuration with search criteria
         limit: Maximum number of records to fetch
-        crawl: Common Crawl dataset to fetch from
-        status_codes: HTTP status codes to filter by (default: [200])
-        mime_types: MIME types to filter by (default: ["text/html"])
-        languages: Languages to filter by (default: None)
-        date_from: Start date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        date_to: End date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        custom_filters: Additional CDX filter strings
 
     Returns:
         List of (CrawlRecord, processed_content_dict) tuples
         Content is processed and cleaned but not chunked - use index() for chunking
     """
-    filter_config = FilterConfig(
-        url_patterns=[url_pattern],
-        status_codes=status_codes,
-        mime_types=mime_types,
-        languages=languages,
-        date_from=date_from,
-        date_to=date_to,
-        custom_filters=custom_filters,
-    )
     athena_client = _get_athena_client()
     s3_client = _get_s3_client()
-    return fetch_lib(filter_config, athena_client, s3_client, crawl, limit)
+    return fetch_lib(filter_config, athena_client, s3_client, limit)
 
 
 def index(
-    url_pattern: str,
-    vector_store_name: str,
-    *,
+    filter_config: FilterConfig,
+    vector_store_config: VectorStoreConfig,
     limit: int = 10,
-    crawl: str = "CC-MAIN-2024-33",
-    status_codes: Optional[List[int]] = None,
-    mime_types: Optional[List[str]] = None,
-    languages: Optional[List[str]] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None,
-    custom_filters: Optional[List[str]] = None,
-    chunk_size: int = 800,
-    overlap: int = 400,
 ) -> Dict[str, Any]:
     """Index processed Common Crawl content into a vector store for RAG.
 
     Args:
-        url_pattern: URL pattern to index (e.g. '%.github.io%')
-        vector_store_name: Name for the vector store
+        filter_config: Filter configuration with search criteria
+        vector_store_config: Vector store configuration including name and chunking params
         limit: Maximum number of records to index
-        crawl: Common Crawl dataset to index from
-        status_codes: HTTP status codes to filter by (default: [200])
-        mime_types: MIME types to filter by (default: ["text/html"])
-        languages: Languages to filter by (default: None)
-        date_from: Start date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        date_to: End date filter (format: yyyy, yyyyMM, or yyyyMMdd)
-        custom_filters: Additional CDX filter strings
-        chunk_size: Maximum chunk size in tokens for OpenAI chunking (100-4096, default 800)
-        overlap: Token overlap between chunks (default 400, must not exceed half of chunk_size)
 
     Returns:
         Dictionary with indexing results including vector store ID and chunk statistics
     """
-    filter_config = FilterConfig(
-        url_patterns=[url_pattern],
-        status_codes=status_codes,
-        mime_types=mime_types,
-        languages=languages,
-        date_from=date_from,
-        date_to=date_to,
-        custom_filters=custom_filters,
-    )
     athena_client = _get_athena_client()
     s3_client = _get_s3_client()
     openai_client = _get_openai_client()
     return index_lib(
         filter_config,
         athena_client,
-        vector_store_name,
-        openai_client=openai_client,
-        s3_client=s3_client,
-        crawl=crawl,
-        limit=limit,
-        chunk_size=chunk_size,
-        overlap=overlap,
+        vector_store_config,
+        openai_client,
+        s3_client,
+        limit,
     )
 
 
@@ -297,3 +195,13 @@ def delete_vector_store_by_name(vector_store_name: str) -> Dict[str, Any]:
     """
     openai_client = _get_openai_client()
     return delete_vector_store_by_name_lib(vector_store_name, openai_client)
+
+
+def list_crawls() -> List[str]:
+    """List available Common Crawl crawls.
+
+    Returns:
+        List of crawl IDs sorted in descending order (newest first)
+    """
+    athena_client = _get_athena_client()
+    return list_crawls_lib(athena_client)
