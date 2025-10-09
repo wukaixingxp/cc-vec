@@ -19,6 +19,8 @@ from .api import (
     index,
     list_vector_stores,
     query_vector_store,
+    delete_vector_store,
+    delete_vector_store_by_name,
     list_crawls,
 )
 
@@ -38,6 +40,8 @@ __all__ = [
     "index",
     "list_vector_stores",
     "query_vector_store",
+    "delete_vector_store",
+    "delete_vector_store_by_name",
     "list_crawls",
 ]
 
