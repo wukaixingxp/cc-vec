@@ -47,7 +47,11 @@ class CCIndexHandler(BaseHandler):
                 vector_store_name = f"ccvec_{clean_pattern}_{timestamp}"
             elif url_host_names:
                 clean_hosts = re.sub(
-                    r"[^a-zA-Z0-9_-]", "_", url_host_names[0] if isinstance(url_host_names, list) else url_host_names
+                    r"[^a-zA-Z0-9_-]",
+                    "_",
+                    url_host_names[0]
+                    if isinstance(url_host_names, list)
+                    else url_host_names,
                 )
                 vector_store_name = f"ccvec_{clean_hosts}_{timestamp}"
             elif crawl_ids:
@@ -87,15 +91,15 @@ class CCIndexHandler(BaseHandler):
             result = index_function(filter_config, vector_store_config, limit=limit)
 
             if result.get("upload_status") == "no_content":
-                filter_desc = f"pattern '{url_pattern}'" if url_pattern else "specified filters"
-                response_text = (
-                    f"No content found for {filter_desc}"
+                filter_desc = (
+                    f"pattern '{url_pattern}'" if url_pattern else "specified filters"
                 )
+                response_text = f"No content found for {filter_desc}"
                 return [TextContent(type="text", text=response_text)]
 
             response_text = f"Successfully loaded content into vector store '{result['vector_store_name']}':\n\n"
             response_text += f"Vector Store ID: {result['vector_store_id']}\n"
-            if result.get('crawl'):
+            if result.get("crawl"):
                 response_text += f"Crawl: {result['crawl']}\n"
             response_text += "\n"
 

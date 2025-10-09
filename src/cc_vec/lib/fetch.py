@@ -82,9 +82,9 @@ def fetch(
                 # Extract crawl_id from filename (format: crawl-data/CC-MAIN-2024-33/segments/...)
                 crawl_id = None
                 if record.filename:
-                    match = re.search(r'(CC-MAIN-\d{4}-\d{2})', record.filename)
+                    match = re.search(r"(CC-MAIN-\d{4}-\d{2})", record.filename)
                     crawl_id = match.group(1)
-                assert(crawl_id is not None)
+                assert crawl_id is not None
 
                 processed["crawl_metadata"] = {
                     "url": str(record.url),

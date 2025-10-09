@@ -57,15 +57,13 @@ class CCFetchHandler(BaseHandler):
             results = fetch_function(filter_config, limit=limit)
 
             if not results:
-                filter_desc = f"pattern '{url_pattern}'" if url_pattern else "specified filters"
-                response_text = (
-                    f"No content fetched for {filter_desc}"
+                filter_desc = (
+                    f"pattern '{url_pattern}'" if url_pattern else "specified filters"
                 )
+                response_text = f"No content fetched for {filter_desc}"
                 return [TextContent(type="text", text=response_text)]
 
-            response_text = (
-                f"Fetched content for {len(results)} records:\n\n"
-            )
+            response_text = f"Fetched content for {len(results)} records:\n\n"
 
             for i, (record, content) in enumerate(results, 1):
                 response_text += f"=== Record {i}: {record.url} ===\n"

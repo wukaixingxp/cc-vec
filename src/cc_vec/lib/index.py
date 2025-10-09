@@ -56,7 +56,9 @@ class VectorStoreLoader:
 
         vector_store = self.client.vector_stores.create(**create_kwargs)
 
-        logger.info(f"Created vector store {self.config.name} with ID: {vector_store.id}")
+        logger.info(
+            f"Created vector store {self.config.name} with ID: {vector_store.id}"
+        )
         return vector_store.id
 
     def prepare_files(

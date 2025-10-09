@@ -25,7 +25,9 @@ class CCListCrawlsHandler(BaseHandler):
                 response_text = "No crawls found."
                 return [TextContent(type="text", text=response_text)]
 
-            response_text = f"Available Common Crawl datasets ({len(crawls)} total):\n\n"
+            response_text = (
+                f"Available Common Crawl datasets ({len(crawls)} total):\n\n"
+            )
 
             # Show first 20 crawls
             for i, crawl in enumerate(crawls[:20], 1):

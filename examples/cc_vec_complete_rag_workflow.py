@@ -83,13 +83,13 @@ def main():
     print(f"  - Chunk size: {vector_store_config.chunk_size} tokens")
     print(f"  - Overlap: {vector_store_config.overlap} tokens")
     print(f"  - Embedding model: {vector_store_config.embedding_model}")
-    print(f"  - Records to index: 5")
+    print("  - Records to index: 5")
 
     print("\n🔄 Indexing (this may take 30-60 seconds)...")
     result = index(filter_config, vector_store_config, limit=5)
 
     vector_store_id = result["vector_store_id"]
-    print(f"\n✅ Indexing complete!")
+    print("\n✅ Indexing complete!")
     print(f"  - Vector Store ID: {vector_store_id}")
     print(f"  - Records processed: {result['total_fetched']}")
     print(f"  - Successfully indexed: {result['successful_fetches']}")
@@ -139,7 +139,7 @@ def main():
     for i, question in enumerate(questions, 1):
         print(f"\n{'─' * 80}")
         print(f"💭 Question {i}: {question}")
-        print('─' * 80)
+        print("─" * 80)
 
         # Create a response with file_search tool
         response = client.responses.create(
@@ -149,11 +149,8 @@ def main():
             Always cite which papers your information comes from.
             If you find multiple sources, synthesize the information and note differences.""",
             input=question,
-            tools=[{
-                "type": "file_search",
-                "vector_store_ids": [vector_store_id]
-            }],
-            include=["file_search_call.results"]
+            tools=[{"type": "file_search", "vector_store_ids": [vector_store_id]}],
+            include=["file_search_call.results"],
         )
 
         # Display response
@@ -170,7 +167,9 @@ def main():
                             for annotation in content.annotations:
                                 if annotation.type == "file_citation":
                                     if annotation.file_id not in unique_files:
-                                        print(f"  - File: {annotation.file_id} ({annotation.filename})")
+                                        print(
+                                            f"  - File: {annotation.file_id} ({annotation.filename})"
+                                        )
                                         unique_files.add(annotation.file_id)
 
         # Small delay between questions
@@ -195,9 +194,9 @@ def main():
 
         print("\n✅ Cleanup complete!")
     else:
-        print(f"\n📌 Resources preserved:")
+        print("\n📌 Resources preserved:")
         print(f"  - Vector Store ID: {vector_store_id}")
-        print(f"\nTo clean up later:")
+        print("\nTo clean up later:")
         print(f"  - CLI: uv run cc-vec delete-vector-store {vector_store_id}")
         print(f"  - Python: delete_vector_store('{vector_store_id}')")
 
@@ -226,4 +225,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()

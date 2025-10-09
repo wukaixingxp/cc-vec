@@ -179,7 +179,11 @@ def search(
         else:
             click.echo(f"Found {len(results)} results via athena:")
             if crawl_ids_list:
-                crawl_display = ", ".join(crawl_ids_list) if len(crawl_ids_list) > 1 else crawl_ids_list[0]
+                crawl_display = (
+                    ", ".join(crawl_ids_list)
+                    if len(crawl_ids_list) > 1
+                    else crawl_ids_list[0]
+                )
                 click.echo(f"Crawl(s): {crawl_display}")
             click.echo()
 
@@ -832,7 +836,9 @@ def index(
                 clean_pattern = re.sub(r"_+", "_", clean_pattern).strip("_")
                 vector_store_name = f"ccvec_{clean_pattern}_{timestamp}"
             elif url_host_names:
-                clean_hosts = re.sub(r"[^a-zA-Z0-9_-]", "_", url_host_names.split(",")[0])
+                clean_hosts = re.sub(
+                    r"[^a-zA-Z0-9_-]", "_", url_host_names.split(",")[0]
+                )
                 vector_store_name = f"ccvec_{clean_hosts}_{timestamp}"
             elif crawl_ids:
                 vector_store_name = f"ccvec_{crawl_ids.split(',')[0]}_{timestamp}"

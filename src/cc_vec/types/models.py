@@ -100,5 +100,7 @@ class VectorStoreConfig(BaseModel):
         """Validate overlap doesn't exceed half of chunk_size."""
         chunk_size = info.data.get("chunk_size", 800)
         if v > chunk_size / 2:
-            raise ValueError(f"overlap ({v}) must not exceed half of chunk_size ({chunk_size})")
+            raise ValueError(
+                f"overlap ({v}) must not exceed half of chunk_size ({chunk_size})"
+            )
         return v

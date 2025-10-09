@@ -50,9 +50,7 @@ def stats(
 
         # Get crawl_id from filter_config or use default
         crawl_id = (
-            filter_config.crawl_ids[0]
-            if filter_config.crawl_ids
-            else "CC-MAIN-2024-33"
+            filter_config.crawl_ids[0] if filter_config.crawl_ids else "CC-MAIN-2024-33"
         )
 
         return StatsResponse(
