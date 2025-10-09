@@ -71,9 +71,15 @@ uv run cc-vec query "Explain deep learning" --vector-store-name "ml-research" --
 
 ```python
 from cc_vec import (
-    search, stats, fetch, index,
-    list_vector_stores, query_vector_store, list_crawls,
-    FilterConfig, VectorStoreConfig
+    search,
+    stats,
+    fetch,
+    index,
+    list_vector_stores,
+    query_vector_store,
+    list_crawls,
+    FilterConfig,
+    VectorStoreConfig,
 )
 
 # Basic search and stats (no OpenAI key needed)
@@ -97,7 +103,7 @@ filter_config = FilterConfig(
     status_codes=[200, 201],
     mime_types=["text/html"],
     charsets=["utf-8"],
-    languages=["en"]
+    languages=["en"],
 )
 
 results = search(filter_config, limit=20)
@@ -124,7 +130,7 @@ vector_config = VectorStoreConfig(
     chunk_size=800,
     overlap=400,
     embedding_model="text-embedding-3-small",
-    embedding_dimensions=1536
+    embedding_dimensions=1536,
 )
 
 result = index(filter_config, vector_config, limit=50)

@@ -58,10 +58,10 @@ class CCStatsHandler(BaseHandler):
             if response.crawl_id:
                 backend_info += f" - {response.crawl_id}"
 
-            filter_desc = f"pattern '{url_pattern}'" if url_pattern else "specified filters"
-            response_text = (
-                f"Statistics for {filter_desc} ({backend_info}):\n\n"
+            filter_desc = (
+                f"pattern '{url_pattern}'" if url_pattern else "specified filters"
             )
+            response_text = f"Statistics for {filter_desc} ({backend_info}):\n\n"
 
             if response.backend == "athena":
                 response_text += f"Data to scan: {response.data_scanned_gb:.2f} GB\n"

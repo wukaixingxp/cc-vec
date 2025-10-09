@@ -39,7 +39,12 @@ class VectorStoreLoader:
 
         create_kwargs = {
             "name": self.config.name,
-            "metadata": {"created_by": "cc-vec", "cc_vec_version": "0.1.0"},
+            "metadata": {
+                "created_by": "cc-vec",
+                "cc_vec_version": "0.1.0",
+                "embedding_model": self.config.embedding_model,
+                "embedding_dimensions": str(self.config.embedding_dimensions),
+            },
             "chunking_strategy": {
                 "type": "static",
                 "static": {
@@ -47,15 +52,13 @@ class VectorStoreLoader:
                     "chunk_overlap_tokens": self.config.overlap,
                 },
             },
-            "extra_body": {
-                "embedding_model": self.config.embedding_model,
-                "embedding_dimensions": self.config.embedding_dimensions,
-            },
         }
 
         vector_store = self.client.vector_stores.create(**create_kwargs)
 
-        logger.info(f"Created vector store {self.config.name} with ID: {vector_store.id}")
+        logger.info(
+            f"Created vector store {self.config.name} with ID: {vector_store.id}"
+        )
         return vector_store.id
 
     def prepare_files(

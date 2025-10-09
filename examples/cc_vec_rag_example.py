@@ -14,7 +14,7 @@ Requirements:
 
 import os
 
-from cc_vec import FilterConfig, index, list_vector_stores, VectorStoreConfig
+from cc_vec import FilterConfig, index, VectorStoreConfig
 from openai import OpenAI
 
 
@@ -46,12 +46,12 @@ def main():
     )
 
     # Index the content (this will take a few moments)
-    print(f"\nIndexing content from Common Crawl...")
+    print("\nIndexing content from Common Crawl...")
     print(f"  - Searching for: {filter_config.url_patterns}")
     print(f"  - Vector store: {vector_store_config.name}")
     print(f"  - Chunk size: {vector_store_config.chunk_size} tokens")
     print(f"  - Overlap: {vector_store_config.overlap} tokens")
-    print(f"  - Limit: 10 records\n")
+    print("  - Limit: 10 records\n")
 
     result = index(
         filter_config=filter_config,
@@ -60,7 +60,7 @@ def main():
     )
 
     vector_store_id = result["vector_store_id"]
-    print(f"\n✅ Vector store created!")
+    print("\n✅ Vector store created!")
     print(f"  - ID: {vector_store_id}")
     print(f"  - Name: {result['vector_store_name']}")
     print(f"  - Records processed: {result['total_fetched']}")

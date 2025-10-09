@@ -239,7 +239,9 @@ class CrawlQueryBuilder:
                 self._escape_sql_string(hostname)
                 for hostname in self.filter_config.url_host_names
             ]
-            where_conditions.append(self._build_like_conditions("url_host_name", safe_hosts))
+            where_conditions.append(
+                self._build_like_conditions("url_host_name", safe_hosts)
+            )
 
         if self.filter_config.status_codes:
             validated_codes = [
@@ -255,21 +257,27 @@ class CrawlQueryBuilder:
                 self._escape_sql_string(mime_type) + "%"
                 for mime_type in self.filter_config.mime_types
             ]
-            where_conditions.append(self._build_like_conditions("content_mime_type", safe_mimes))
+            where_conditions.append(
+                self._build_like_conditions("content_mime_type", safe_mimes)
+            )
 
         if self.filter_config.languages:
             safe_langs = [
                 "%" + self._escape_sql_string(language) + "%"
                 for language in self.filter_config.languages
             ]
-            where_conditions.append(self._build_like_conditions("content_languages", safe_langs))
+            where_conditions.append(
+                self._build_like_conditions("content_languages", safe_langs)
+            )
 
         if self.filter_config.charsets:
             safe_charsets = [
                 self._escape_sql_string(charset) + "%"
                 for charset in self.filter_config.charsets
             ]
-            where_conditions.append(self._build_like_conditions("content_charset", safe_charsets))
+            where_conditions.append(
+                self._build_like_conditions("content_charset", safe_charsets)
+            )
 
         if self.filter_config.date_from:
             safe_date_from = self._escape_sql_string(self.filter_config.date_from)

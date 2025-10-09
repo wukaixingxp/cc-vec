@@ -56,11 +56,15 @@ class CCSearchHandler(BaseHandler):
             results = search_function(filter_config, limit=limit)
 
             if not results:
-                filter_desc = f"pattern '{url_pattern}'" if url_pattern else "specified filters"
+                filter_desc = (
+                    f"pattern '{url_pattern}'" if url_pattern else "specified filters"
+                )
                 response_text = f"SEARCH RESULTS: 0 URLs found for {filter_desc}"
                 return [TextContent(type="text", text=response_text)]
 
-            filter_desc = f"pattern '{url_pattern}'" if url_pattern else "specified filters"
+            filter_desc = (
+                f"pattern '{url_pattern}'" if url_pattern else "specified filters"
+            )
             summary = f"SEARCH RESULTS: Found {len(results)} URLs for {filter_desc}"
 
             url_list = "\n\nURL LIST:"
