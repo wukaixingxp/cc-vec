@@ -77,9 +77,8 @@ def main():
         name="cc-ls",
         chunk_size=1000,  # Larger chunks for academic content
         overlap=200,  # Less overlap for distinct sections
-        embedding_model="sentence-transformers/all-MiniLM-L6-v2",  # Use sentence-transformers/all-MiniLM-L6-v2
+        embedding_model= os.getenv("OPENAI_EMBEDDING_MODEL"),  # Use sentence-transformers/all-MiniLM-L6-v2
     )
-
     print("⚙️  Indexing configuration:")
     print(f"  - Vector store: {vector_store_config.name}")
     print(f"  - Chunk size: {vector_store_config.chunk_size} tokens")
@@ -216,6 +215,7 @@ if __name__ == "__main__":
     # Check environment
     os.environ["OPENAI_API_KEY"] = 'dummy'
     os.environ["OPENAI_BASE_URL"] = 'http://localhost:8321/v1/openai/v1'
+    os.environ["OPENAI_EMBEDDING_MODEL"] = 'dummy'
     # set llama-stack model name to use for testing
     #os.environ["MODEL_NAME"] = 'fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct'
     os.environ["MODEL_NAME"] = 'together/meta-llama/Llama-3.3-70B-Instruct-Turbo'
