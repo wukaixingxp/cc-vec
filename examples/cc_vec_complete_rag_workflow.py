@@ -36,9 +36,12 @@ def print_section(title):
 
 
 def main():
+    # =========================================================================
+    # Most important configuration: set your OpenAI API key and base URL to llama-stack endpoint
     # Configuration
+
     filter_config = FilterConfig(
-        url_patterns=["%.arxiv.org%"],  # arXiv papers
+        url_host_names=["commoncrawl.org"],  # search for commoncrawl.org 
         crawl_ids=["CC-MAIN-2024-33"],
         status_codes=[200],
         mime_types=["text/html"],
@@ -50,7 +53,7 @@ def main():
     print_section("PART 1: Explore Common Crawl Data")
 
     # Get statistics
-    print("📊 Getting statistics for arXiv content...")
+    print("📊 Getting statistics for common-crawl content...")
     stats_response = stats(filter_config)
     print(f"  - Estimated records: {stats_response.estimated_records:,}")
     print(f"  - Estimated size: {stats_response.estimated_size_mb:.2f} MB")
@@ -71,11 +74,10 @@ def main():
     print_section("PART 2: Index Content into Vector Store")
 
     vector_store_config = VectorStoreConfig(
-        name="arxiv-papers-demo",
+        name="cc-ls",
         chunk_size=1000,  # Larger chunks for academic content
         overlap=200,  # Less overlap for distinct sections
-        embedding_model="text-embedding-3-small",
-        embedding_dimensions=1536,
+        embedding_model="sentence-transformers/all-MiniLM-L6-v2",  # Use sentence-transformers/all-MiniLM-L6-v2
     )
 
     print("⚙️  Indexing configuration:")
@@ -110,7 +112,7 @@ def main():
     print("\n🔎 Direct vector store query (using cc-vec)...")
     query_result = query_vector_store(
         vector_store_id=vector_store_id,
-        query="What machine learning topics are discussed?",
+        query="What is Common Crawl?",
         limit=3,
     )
     print(f"  Found {len(query_result.get('results', []))} results:")
@@ -126,14 +128,15 @@ def main():
     # PART 4: Advanced RAG with OpenAI Responses API
     # =========================================================================
     print_section("PART 4: Advanced RAG with OpenAI Responses API")
-
+    # Set up OpenAI client to llama-stack endpoint
     client = OpenAI()
-
+    # Get the list of available models and use the first one
+    model = os.getenv("MODEL_NAME")
+    print(f"🤖 Using model: {model}")
+    
     # Multiple questions demonstrating RAG
     questions = [
-        "What are the main research topics covered in these papers?",
-        "Are there any papers about neural networks or deep learning?",
-        "Can you summarize the key findings across these papers?",
+        "What is Common Crawl? How does it work?",
     ]
 
     for i, question in enumerate(questions, 1):
@@ -143,7 +146,7 @@ def main():
 
         # Create a response with file_search tool
         response = client.responses.create(
-            model="gpt-4o-mini",
+            model=model,
             instructions="""You are a research assistant that helps analyze arXiv papers.
             Use the file_search tool to find relevant information from the indexed papers.
             Always cite which papers your information comes from.
@@ -211,6 +214,10 @@ def main():
 
 if __name__ == "__main__":
     # Check environment
+    os.environ["OPENAI_API_KEY"] = 'dummy'
+    os.environ["OPENAI_BASE_URL"] = 'http://localhost:8321/v1/openai/v1'
+    # set llama-stack model name to use for testing
+    os.environ["MODEL_NAME"] = 'fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct'
     if not os.getenv("OPENAI_API_KEY"):
         print("❌ OPENAI_API_KEY not set")
         exit(1)

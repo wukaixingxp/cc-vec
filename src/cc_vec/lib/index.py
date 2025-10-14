@@ -52,6 +52,10 @@ class VectorStoreLoader:
                     "chunk_overlap_tokens": self.config.overlap,
                 },
             },
+            "extra_body": {
+                "embedding_model": self.config.embedding_model,
+                "embedding_dimensions": self.config.embedding_dimensions,
+            },
         }
 
         vector_store = self.client.vector_stores.create(**create_kwargs)

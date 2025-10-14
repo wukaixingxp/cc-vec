@@ -240,7 +240,7 @@ class CrawlQueryBuilder:
                 for hostname in self.filter_config.url_host_names
             ]
             where_conditions.append(
-                self._build_like_conditions("url_host_name", safe_hosts)
+                self._build_exact_match_condition("url_host_name", safe_hosts)
             )
 
         if self.filter_config.status_codes:
