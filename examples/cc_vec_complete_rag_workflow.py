@@ -147,13 +147,13 @@ def main():
         # Create a response with file_search tool
         response = client.responses.create(
             model=model,
-            instructions="""You are a research assistant that helps analyze arXiv papers.
-            Use the file_search tool to find relevant information from the indexed papers.
-            Always cite which papers your information comes from.
-            If you find multiple sources, synthesize the information and note differences.""",
             input=question,
-            tools=[{"type": "file_search", "vector_store_ids": [vector_store_id]}],
-            include=["file_search_call.results"],
+            tools=[
+                {  # Using Responses API built-in tools
+                "type": "file_search",
+                "vector_store_ids": [vector_store_id],  # Vector store containing uploaded files
+                },
+            ],
         )
 
         # Display response
@@ -217,7 +217,8 @@ if __name__ == "__main__":
     os.environ["OPENAI_API_KEY"] = 'dummy'
     os.environ["OPENAI_BASE_URL"] = 'http://localhost:8321/v1/openai/v1'
     # set llama-stack model name to use for testing
-    os.environ["MODEL_NAME"] = 'fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct'
+    #os.environ["MODEL_NAME"] = 'fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct'
+    os.environ["MODEL_NAME"] = 'together/meta-llama/Llama-3.3-70B-Instruct-Turbo'
     if not os.getenv("OPENAI_API_KEY"):
         print("❌ OPENAI_API_KEY not set")
         exit(1)
