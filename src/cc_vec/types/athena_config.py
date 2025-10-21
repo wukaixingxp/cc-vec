@@ -16,7 +16,14 @@ class AthenaSettings:
     @property
     def output_location(self) -> Optional[str]:
         """Get S3 output location for Athena."""
-        return self.output_bucket
+        if not self.output_bucket:
+            return None
+        
+        # Ensure the bucket path starts with s3://
+        if self.output_bucket.startswith("s3://"):
+            return self.output_bucket
+        else:
+            return f"s3://{self.output_bucket}/"
 
     def is_configured(self) -> bool:
         """Check if Athena is properly configured."""
