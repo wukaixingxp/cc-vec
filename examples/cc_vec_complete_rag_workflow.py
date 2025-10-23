@@ -72,12 +72,20 @@ def main():
     # PART 2: Index into Vector Store
     # =========================================================================
     print_section("PART 2: Index Content into Vector Store")
-
+    embedding_dimensions_map = {
+            "text-embedding-3-small": 1536,
+            "text-embedding-3-large": 3072,
+            "text-embedding-ada-002": 1536,
+            "sentence-transformers/nomic-ai/nomic-embed-text-v1.5": 768,
+            "nomic-embed-text-v1.5": 768,
+    }
+    embedding_model = os.getenv("OPENAI_EMBEDDING_MODEL")
     vector_store_config = VectorStoreConfig(
         name="cc-ls",
         chunk_size=1000,  # Larger chunks for academic content
         overlap=200,  # Less overlap for distinct sections
-        embedding_model= os.getenv("OPENAI_EMBEDDING_MODEL"),  # Use sentence-transformers/all-MiniLM-L6-v2
+        embedding_model= embedding_model,  # Use sentence-transformers/all-MiniLM-L6-v2
+        embedding_dimensions=embedding_dimensions_map.get(embedding_model, 1536),  # Embedding dimensions for sentence-transformers/all-MiniLM-L6-v2
     )
     print("⚙️  Indexing configuration:")
     print(f"  - Vector store: {vector_store_config.name}")
@@ -215,7 +223,7 @@ if __name__ == "__main__":
     # Check environment
     os.environ["OPENAI_API_KEY"] = 'dummy'
     os.environ["OPENAI_BASE_URL"] = 'http://localhost:8321/v1/openai/v1'
-    os.environ["OPENAI_EMBEDDING_MODEL"] = 'dummy'
+    os.environ["OPENAI_EMBEDDING_MODEL"] = 'sentence-transformers/nomic-ai/nomic-embed-text-v1.5'
     # set llama-stack model name to use for testing
     #os.environ["MODEL_NAME"] = 'fireworks/accounts/fireworks/models/llama-v3p3-70b-instruct'
     os.environ["MODEL_NAME"] = 'together/meta-llama/Llama-3.3-70B-Instruct-Turbo'
