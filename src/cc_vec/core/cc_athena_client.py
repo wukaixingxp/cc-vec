@@ -123,7 +123,24 @@ class CrawlQueryBuilder:
             result['reason'] = 'exact domain pattern'
             return result
 
-        # Pattern 3: Subdomain wildcard (%.example.com)
+        # Pattern 3a: Prefix wildcard matching exact hostname (%example.com, %llamastack.github.io)
+        # This catches patterns like *llamastack.github.io
+        # The wildcard at the start means "anything before", but we want to match the exact hostname
+        # Example: *llamastack.github.io should match "llamastack.github.io" but NOT "other.github.io"
+        prefix_wildcard_match = re.match(r'^%([a-z0-9.-]+)\.([a-z]{2,})$', sql_pattern, re.IGNORECASE)
+        if prefix_wildcard_match:
+            domain_part = prefix_wildcard_match.group(1).lower()
+            tld = prefix_wildcard_match.group(2).lower()
+            full_hostname = f"{domain_part}.{tld}"
+
+            # For *llamastack.github.io, we want to match exactly that hostname
+            # Use url_host_name filter for exact match
+            result['tld'] = tld
+            result['host_names'] = [full_hostname]
+            result['reason'] = 'prefix wildcard pattern (exact hostname match)'
+            return result
+
+        # Pattern 3b: Subdomain wildcard (%.example.com)
         subdomain_wildcard_match = re.match(r'^%\.(www\.)?([a-z0-9-]+)\.([a-z]{2,})$', sql_pattern, re.IGNORECASE)
         if subdomain_wildcard_match:
             has_www = subdomain_wildcard_match.group(1) is not None
@@ -412,16 +429,49 @@ class CrawlQueryBuilder:
             """
 
         # Handle crawl IDs (multiple or single), default to latest if not specified
+        # Support patterns like CC-MAIN-2024-* using LIKE
         if self.filter_config.crawl_ids:
-            validated_crawls = [
-                self._validate_crawl_id(cid) for cid in self.filter_config.crawl_ids
-            ]
+            exact_crawls = []
+            pattern_crawls = []
+
+            for cid in self.filter_config.crawl_ids:
+                # Check if it's a pattern (contains * or ?)
+                if '*' in cid or '?' in cid:
+                    # Normalize to uppercase and strip whitespace
+                    cid_upper = cid.strip().upper()
+                    # Convert glob pattern to SQL LIKE pattern
+                    sql_pattern = cid_upper.replace('*', '%').replace('?', '_')
+                    # Validate pattern format (allow % and _ for LIKE)
+                    if not re.match(r'^CC-MAIN-[\d%_-]+$', sql_pattern):
+                        raise ValueError(
+                            f"Invalid crawl ID pattern: '{cid}'. "
+                            f"Expected format: CC-MAIN-YYYY-* or CC-MAIN-YYYY-WW (case-insensitive). "
+                            f"Check for typos like trailing dots or invalid characters."
+                        )
+                    pattern_crawls.append(self._escape_sql_string(sql_pattern))
+                else:
+                    # Exact crawl ID - normalize to uppercase before validation
+                    exact_crawls.append(self._validate_crawl_id(cid.upper()))
+
+            # Build crawl condition
+            crawl_conditions = []
+            if exact_crawls:
+                crawl_conditions.append(self._build_exact_match_condition("crawl", exact_crawls))
+            if pattern_crawls:
+                crawl_conditions.append(self._build_like_conditions("crawl", pattern_crawls))
+
+            if len(crawl_conditions) == 1:
+                crawl_condition = crawl_conditions[0]
+            else:
+                # Combine exact matches and patterns with OR
+                crawl_condition = f"({' OR '.join(crawl_conditions)})"
         else:
             # Default to latest crawl if not specified
             validated_crawls = [self._validate_crawl_id("CC-MAIN-2024-33")]
+            crawl_condition = self._build_exact_match_condition("crawl", validated_crawls)
 
         where_conditions = [
-            self._build_exact_match_condition("crawl", validated_crawls),
+            crawl_condition,
             "subset = 'warc'",
         ]
 

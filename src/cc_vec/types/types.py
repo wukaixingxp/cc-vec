@@ -27,15 +27,26 @@ class SearchResponse:
 
 
 @dataclass
+class PerCrawlStats:
+    """Statistics for a single crawl."""
+
+    crawl_id: str
+    estimated_records: int
+    estimated_size_mb: float
+    estimated_cost_usd: float
+    data_scanned_gb: float
+
+
+@dataclass
 class StatsResponse:
     """Response from cc_stats method."""
 
-    estimated_records: int
-    estimated_size_mb: float
-    estimated_cost_usd: Optional[float] = None
-    data_scanned_gb: Optional[float] = None
-    backend: str = "cdx"
-    crawl_id: Optional[str] = None
+    per_crawl_stats: List[PerCrawlStats]
+    total_estimated_records: int
+    total_estimated_size_mb: float
+    total_estimated_cost_usd: float
+    total_data_scanned_gb: float
+    backend: str = "athena"
 
 
 @dataclass
