@@ -146,26 +146,60 @@ def stats(ctx, output, **filter_kwargs):
 
         if output == "json":
             result = {
-                "estimated_records": response.estimated_records,
-                "estimated_size_mb": response.estimated_size_mb,
                 "backend": response.backend,
-                "crawl_id": response.crawl_id,
-                "estimated_cost_usd": response.estimated_cost_usd,
-                "data_scanned_gb": response.data_scanned_gb,
+                "per_crawl_stats": [
+                    {
+                        "crawl_id": stats.crawl_id,
+                        "estimated_records": stats.estimated_records,
+                        "estimated_size_mb": stats.estimated_size_mb,
+                        "estimated_cost_usd": stats.estimated_cost_usd,
+                        "data_scanned_gb": stats.data_scanned_gb,
+                    }
+                    for stats in response.per_crawl_stats
+                ],
+                "totals": {
+                    "estimated_records": response.total_estimated_records,
+                    "estimated_size_mb": response.total_estimated_size_mb,
+                    "estimated_cost_usd": response.total_estimated_cost_usd,
+                    "data_scanned_gb": response.total_data_scanned_gb,
+                },
             }
             click.echo(json.dumps(result, indent=2))
         else:
-            click.echo(f"Statistics for '{url_pattern}' via {response.backend}:")
-            if response.crawl_id:
-                click.echo(f"Crawl: {response.crawl_id}")
+            click.echo(f"Statistics via {response.backend}:")
+            click.echo()
 
-            click.echo(f"Estimated records: {response.estimated_records:,}")
-            click.echo(f"Estimated size: {response.estimated_size_mb:.2f} MB")
+            # Display per-crawl statistics in table format
+            if response.per_crawl_stats:
+                click.echo(f"Found statistics for {len(response.per_crawl_stats)} crawl(s):")
+                click.echo()
 
-            if response.estimated_cost_usd:
-                click.echo(f"Athena cost: ${response.estimated_cost_usd:.4f}")
-            if response.data_scanned_gb:
-                click.echo(f"Data to scan: {response.data_scanned_gb:.2f} GB")
+                # Table header
+                click.echo(f"{'Crawl ID':<20} {'Records':>15} {'Size (MB)':>12} {'Scanned (GB)':>14} {'Cost ($)':>12}")
+                click.echo("-" * 85)
+
+                # Table rows
+                for stats in response.per_crawl_stats:
+                    click.echo(
+                        f"{stats.crawl_id:<20} "
+                        f"{stats.estimated_records:>15,} "
+                        f"{stats.estimated_size_mb:>12.2f} "
+                        f"{stats.data_scanned_gb:>14.2f} "
+                        f"{stats.estimated_cost_usd:>12.4f}"
+                    )
+
+                # Display totals if multiple crawls
+                if len(response.per_crawl_stats) > 1:
+                    click.echo("-" * 85)
+                    click.echo(
+                        f"{'TOTAL':<20} "
+                        f"{response.total_estimated_records:>15,} "
+                        f"{response.total_estimated_size_mb:>12.2f} "
+                        f"{response.total_data_scanned_gb:>14.2f} "
+                        f"{response.total_estimated_cost_usd:>12.4f}"
+                    )
+            else:
+                click.echo("No statistics found.")
 
     except Exception as e:
         logger.error("Stats failed", exc_info=ctx.obj["debug"])
@@ -634,7 +668,16 @@ def index(ctx, vector_store_name, limit, chunk_size, overlap, output, **filter_k
                 f"Indexed content into vector store '{result['vector_store_name']}':"
             )
             click.echo(f"Vector Store ID: {result['vector_store_id']}")
-            click.echo(f"Crawl: {result['crawl']}")
+
+            # Display crawl IDs
+            crawl_ids = result.get('crawl_ids', [])
+            if crawl_ids:
+                crawl_display = (
+                    ", ".join(crawl_ids)
+                    if len(crawl_ids) > 1
+                    else crawl_ids[0]
+                )
+                click.echo(f"Crawl(s): {crawl_display}")
             click.echo()
 
             click.echo(f"Records processed: {result['total_fetched']}")

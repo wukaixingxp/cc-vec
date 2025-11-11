@@ -20,6 +20,7 @@ from .models import (
 # Response types
 from .types import (
     StatsResponse,
+    PerCrawlStats,
     SearchResponse,
     SearchResult,
     ProcessResponse,
@@ -44,6 +45,7 @@ __all__ = [
     "ProcessedContent",
     # Response types
     "StatsResponse",
+    "PerCrawlStats",
     "SearchResponse",
     "SearchResult",
     "ProcessResponse",
