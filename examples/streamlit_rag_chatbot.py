@@ -19,6 +19,7 @@ from cc_vec import (
     index,
     query_vector_store,
     delete_vector_store,
+    list_vector_stores,
     FilterConfig,
     VectorStoreConfig,
 )
@@ -148,7 +149,7 @@ def build_rag(domain_url, crawl_ids_input, num_records, chunk_size, overlap):
         print(f"\n📋 Configuration:")
         print(f"  • Domain: {domain_url}")
         print(f"  • Crawl IDs: {', '.join(crawl_ids)}")
-        print(f"  • Records to index: {num_records}")
+        print(f"  • Records to index: {'ALL (no limit)' if num_records is None else num_records}")
         print(f"  • Chunk size: {chunk_size} tokens")
         print(f"  • Overlap: {overlap} tokens")
         
@@ -166,9 +167,9 @@ def build_rag(domain_url, crawl_ids_input, num_records, chunk_size, overlap):
         print("\n📊 Getting statistics from Athena...")
         stats_response = stats(filter_config)
         print(f"  ✓ Statistics retrieved:")
-        print(f"    - Estimated records: {stats_response.estimated_records:,}")
-        print(f"    - Estimated size: {stats_response.estimated_size_mb:.2f} MB")
-        cost_usd = stats_response.estimated_cost_usd if stats_response.estimated_cost_usd is not None else 0.0
+        print(f"    - Estimated records: {stats_response.total_estimated_records:,}")
+        print(f"    - Estimated size: {stats_response.total_estimated_size_mb:.2f} MB")
+        cost_usd = stats_response.total_estimated_cost_usd if stats_response.total_estimated_cost_usd is not None else 0.0
         print(f"    - Athena cost: ${cost_usd:.4f}")
         
         # Preview URLs
@@ -218,10 +219,14 @@ def build_rag(domain_url, crawl_ids_input, num_records, chunk_size, overlap):
         print(f"    - Embedding dimensions: {vector_store_config.embedding_dimensions}")
         
         # Index content
-        print(f"\n🔄 Starting indexing process for {num_records} records...")
-        print("  (This may take 30-60 seconds depending on the number of records)")
-        
-        result = index(filter_config, vector_store_config, limit=int(num_records))
+        if num_records is None:
+            print(f"\n🔄 Starting indexing process for ALL available records...")
+            print("  (This may take several minutes depending on the number of records)")
+        else:
+            print(f"\n🔄 Starting indexing process for {num_records} records...")
+            print("  (This may take 30-60 seconds depending on the number of records)")
+
+        result = index(filter_config, vector_store_config, limit=int(num_records) if num_records is not None else None)
         
         vector_store_id = result["vector_store_id"]
         
@@ -448,14 +453,26 @@ with tab2:
     
     with col2:
         st.subheader("⚙️ Indexing Configuration")
-        num_records = st.slider(
-            "Number of Records to Index",
-            min_value=1,
-            max_value=100,
-            value=5,
-            help="More records = more content but longer processing time"
+
+        # Checkbox for unlimited records
+        unlimited = st.checkbox(
+            "No limit (index all available records)",
+            value=False,
+            help="When checked, all matching records will be indexed"
         )
-        
+
+        if unlimited:
+            num_records = None
+            st.info("📊 Will index all available records")
+        else:
+            num_records = st.number_input(
+                "Number of Records to Index",
+                min_value=1,
+                value=5,
+                step=1,
+                help="Enter any number. More records = more content but longer processing time"
+            )
+
         st.info(f"📊 Embedding Model: {os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')}")
         st.info(f"🔧 Using default chunking: 1000 tokens with 200 token overlap")
     
@@ -490,11 +507,11 @@ with tab2:
                 # Show statistics
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Estimated Records", f"{result['stats'].estimated_records:,}")
+                    st.metric("Estimated Records", f"{result['stats'].total_estimated_records:,}")
                 with col2:
-                    st.metric("Data Size", f"{result['stats'].estimated_size_mb:.2f} MB")
+                    st.metric("Data Size", f"{result['stats'].total_estimated_size_mb:.2f} MB")
                 with col3:
-                    st.metric("Athena Cost", f"${result['stats'].estimated_cost_usd:.4f}")
+                    st.metric("Athena Cost", f"${result['stats'].total_estimated_cost_usd:.4f}")
                 
                 # Show configuration
                 with st.expander("📋 Configuration Details", expanded=True):
@@ -565,46 +582,113 @@ with tab3:
 
 # Tab 4: Manage
 with tab4:
-    st.header("Manage Your Vector Store")
-    
-    # Current status
+    st.header("Manage Your Vector Stores")
+
+    # Refresh button
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.rerun()
+
+    st.markdown("---")
+
+    # List all vector stores
+    st.subheader("📦 All Vector Stores")
+
+    try:
+        vector_stores = list_vector_stores(cc_vec_only=True)
+
+        if vector_stores:
+            st.write(f"Found **{len(vector_stores)}** vector store(s):")
+
+            for store in vector_stores:
+                with st.expander(f"📦 {store['name']} ({store['id']})", expanded=True):
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.write("**Basic Info:**")
+                        st.write(f"- **ID:** `{store['id']}`")
+                        st.write(f"- **Name:** `{store['name']}`")
+                        st.write(f"- **Status:** {store['status']}")
+                        st.write(f"- **Created:** {store['created_at']}")
+
+                        if store.get('file_counts'):
+                            st.write("\n**File Counts:**")
+                            st.write(f"- Total: {store['file_counts'].get('total', 0)}")
+                            st.write(f"- Completed: {store['file_counts'].get('completed', 0)}")
+                            st.write(f"- Failed: {store['file_counts'].get('failed', 0)}")
+
+                    with col2:
+                        if store.get('metadata'):
+                            st.write("**Metadata:**")
+                            metadata = store['metadata']
+                            for key, value in metadata.items():
+                                st.write(f"- **{key}:** {value}")
+
+                    # Action buttons
+                    st.markdown("---")
+                    action_col1, action_col2, action_col3 = st.columns(3)
+
+                    with action_col1:
+                        # Load button
+                        is_current = st.session_state.vector_store_id == store['id']
+                        if st.button(
+                            "✅ Current" if is_current else "📥 Load",
+                            key=f"load_{store['id']}",
+                            disabled=is_current,
+                            use_container_width=True
+                        ):
+                            st.session_state.vector_store_id = store['id']
+                            st.session_state.vector_store_name = store['name']
+                            st.session_state.build_complete = True
+                            st.success(f"✅ Loaded vector store: {store['name']}")
+                            st.rerun()
+
+                    with action_col2:
+                        # Query test button
+                        if st.button("🔍 Test Query", key=f"query_{store['id']}", use_container_width=True):
+                            st.info("Go to the Chat tab to query this vector store")
+
+                    with action_col3:
+                        # Delete button
+                        if st.button("🗑️ Delete", key=f"delete_{store['id']}", type="secondary", use_container_width=True):
+                            try:
+                                delete_result = delete_vector_store(store['id'])
+
+                                # Clear session state if this was the active store
+                                if st.session_state.vector_store_id == store['id']:
+                                    st.session_state.vector_store_id = None
+                                    st.session_state.vector_store_name = None
+                                    st.session_state.build_complete = False
+                                    st.session_state.messages = []
+
+                                st.success(f"✅ Deleted vector store: {store['name']}")
+                                st.rerun()
+
+                            except Exception as e:
+                                st.error(f"❌ Error deleting vector store: {str(e)}")
+        else:
+            st.info("ℹ️ No vector stores found. Build one in the 'Build RAG' tab.")
+
+    except Exception as e:
+        st.error(f"❌ Error fetching vector stores: {str(e)}")
+        st.info("Make sure your OpenAI API configuration is correct in the Settings tab.")
+
+    st.markdown("---")
+
+    # Current session info
     if st.session_state.vector_store_id:
-        st.markdown('<div class="info-box">', unsafe_allow_html=True)
-        st.write("### 📦 Current Vector Store")
+        st.subheader("🎯 Active Vector Store")
+        st.markdown('<div class="success-box">', unsafe_allow_html=True)
         st.write(f"**ID:** `{st.session_state.vector_store_id}`")
         st.write(f"**Name:** `{st.session_state.vector_store_name}`")
-        st.write("**Status:** ✅ Active")
+        st.write("**Status:** ✅ Loaded and ready for chat")
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.markdown("---")
-        
-        # Delete section
-        st.subheader("🗑️ Delete Vector Store")
-        st.warning("⚠️ This action cannot be undone. All indexed data will be permanently deleted.")
-        
-        col1, col2 = st.columns([3, 1])
-        with col2:
-            if st.button("Delete", type="secondary", use_container_width=True):
-                try:
-                    vector_store_id = st.session_state.vector_store_id
-                    delete_result = delete_vector_store(vector_store_id)
-                    
-                    # Clear session state
-                    st.session_state.vector_store_id = None
-                    st.session_state.vector_store_name = None
-                    st.session_state.build_complete = False
-                    st.session_state.messages = []
-                    
-                    st.success(f"✅ Deleted vector store: {vector_store_id}")
-                    st.rerun()
-                    
-                except Exception as e:
-                    st.error(f"❌ Error deleting vector store: {str(e)}")
     else:
-        st.info("ℹ️ No vector store currently active. Build one in the 'Build RAG' tab.")
-    
+        st.info("ℹ️ No vector store currently loaded. Load one from the list above or build a new one.")
+
     st.markdown("---")
-    
+
     # Environment info
     with st.expander("🔧 Environment Configuration"):
         st.write("**Required Environment Variables:**")
