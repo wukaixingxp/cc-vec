@@ -73,7 +73,7 @@ The app will open in your browser at `http://localhost:8501`
 1. **Configure Data Source**:
    - Enter the domain URL (e.g., `commoncrawl.org`)
    - Specify crawl IDs (e.g., `CC-MAIN-2024-33`)
-   - Choose number of records to index (1-100)
+   - Choose number of records to index (or check "No limit" to index all available records)
 
 2. **Build**:
    - Click "🚀 Build RAG System"
@@ -83,7 +83,7 @@ The app will open in your browser at `http://localhost:8501`
 
 **Note:** Chunking is automatically configured with optimal defaults (1000 tokens, 200 overlap)
 
-### 2. Chat with RAG (💬 Chat Tab)
+### 3. Chat with RAG (💬 Chat Tab)
 
 1. Navigate to the Chat tab
 2. Type your question in the input box
@@ -91,58 +91,27 @@ The app will open in your browser at `http://localhost:8501`
 4. View source citations for each response
 5. Clear chat history when needed
 
-### 3. Manage Vector Store (⚙️ Manage Tab)
+### 4. Manage Vector Stores (📦 Manage Tab)
 
-- View current vector store status
+- View all existing vector stores with their metadata
+- Load any vector store to make it active for chat
+- Test query or delete vector stores
+- View current session's active vector store
 - Check environment configuration
-- Delete vector store when done (careful - irreversible!)
-
-## 🎯 Key Improvements over Gradio
-
-- **Better Visual Design**: Gradient headers, custom CSS, cleaner layout
-- **Native Chat Interface**: Streamlit's built-in chat components
-- **Session State Management**: Persistent state across interactions
-- **Better Progress Indicators**: Real-time feedback during build
-- **Expandable Sections**: Cleaner information display
-- **Sidebar Navigation**: Quick guide and status at a glance
-- **Metrics Display**: Beautiful metric cards for statistics
-- **Better Error Handling**: Clear, styled error messages
-
-## 🎨 UI Features
-
-### Main Page
-- Gradient title with modern design
-- Three organized tabs for different functions
-- Responsive columns for inputs
-- Clear visual hierarchy
-
-### Build RAG Tab
-- Two-column layout for configuration
-- Interactive sliders with tooltips
-- Real-time embedding model display
-- Progress indicators during build
-- Detailed statistics with metric cards
-- Expandable configuration details
-- Sample URL preview
-
-### Chat Tab
-- Native Streamlit chat interface
-- Message bubbles for user and assistant
-- Source citations in responses
-- Clear chat history button
-- Vector store status indicator
 
 ### Manage Tab
-- Styled info boxes for status
-- Warning for destructive actions
+- List all vector stores with full details
+- Load any vector store to make it active
+- View metadata and file counts for each store
+- Test query and delete actions
+- Active vector store status
 - Environment variable checker
-- Clean delete interface
 
 ### Sidebar
-- Navigation guide
-- Quick status indicator
+- Navigation guide with quick steps
+- Quick status indicator for vector store
 - Visual separation with markdown
-- Branding elements
+- Branding elements (Streamlit logo)
 
 ## 🔧 Technical Details
 
@@ -186,24 +155,45 @@ Make sure you've built the RAG system first in the "Build RAG" tab.
 ## 📝 Example Workflow
 
 ```bash
-# 1. Set environment variables
+# Option 1: Using .env file (recommended)
+# Create a .env file with your configuration
+cat > .env <<EOF
+OPENAI_API_KEY=dummy
+OPENAI_BASE_URL=http://localhost:8321/v1/openai/v1
+OPENAI_EMBEDDING_MODEL=sentence-transformers/nomic-ai/nomic-embed-text-v1.5
+MODEL_NAME=together/meta-llama/Llama-3.3-70B-Instruct-Turbo
+ATHENA_OUTPUT_BUCKET=s3://my-bucket/
+AWS_DEFAULT_REGION=us-west-2
+EOF
+
+# Start the app
+uv run streamlit run examples/streamlit_rag_chatbot.py
+
+# Option 2: Using environment variables
 export OPENAI_API_KEY="dummy"
 export OPENAI_BASE_URL="http://localhost:8321/v1/openai/v1"
 export OPENAI_EMBEDDING_MODEL="sentence-transformers/nomic-ai/nomic-embed-text-v1.5"
 export MODEL_NAME="together/meta-llama/Llama-3.3-70B-Instruct-Turbo"
 export ATHENA_OUTPUT_BUCKET="s3://my-bucket/"
 
-# 2. Start the app
+# Start the app
 uv run streamlit run examples/streamlit_rag_chatbot.py
 
-# 3. In the browser:
-#    - Go to "Build RAG" tab
-#    - Configure: commoncrawl.org, CC-MAIN-2024-33, 5 records
-#    - Click "Build RAG System"
-#    - Wait for completion
-#    - Go to "Chat" tab
-#    - Ask: "What is Common Crawl?"
-#    - Get intelligent responses with citations!
+# In the browser:
+#    1. Go to "Settings" tab (optional if using .env)
+#       - Verify or update configuration
+#       - Click "Save Configuration"
+#    2. Go to "Build RAG" tab
+#       - Configure: commoncrawl.org, CC-MAIN-2024-33
+#       - Enter 5 for number of records (or check "No limit")
+#       - Click "Build RAG System"
+#       - Wait for completion
+#    3. Go to "Chat" tab
+#       - Ask: "What is Common Crawl?"
+#       - Get intelligent responses with citations!
+#    4. Go to "Manage" tab (optional)
+#       - View all vector stores
+#       - Load, test, or delete stores as needed
 ```
 
 ## 🎉 Enjoy!
